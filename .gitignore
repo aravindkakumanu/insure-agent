@@ -1,0 +1,30 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Secrets — NEVER commit these
+.env
+
+# Data — insurance PDFs may be confidential
+data/policies/
+data/chroma_db/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.cursor
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
