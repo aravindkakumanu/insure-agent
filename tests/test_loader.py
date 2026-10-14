@@ -38,10 +38,14 @@ def test_load_pdf_raises_if_no_text():
 
 
 def test_load_pdf_returns_chunks():
-    """load_pdf should return non-empty list of Document chunks for valid PDF."""
-    # Simulate a page with real text
+    """load_pdf should return non-empty list of Document chunks for valid PDF.
+
+    We force CHUNK_STRATEGY = "fixed_token" here so the test stays fast and
+    offline — the semantic strategy makes live OpenAI embedding calls that
+    are unsuitable for unit tests.
+    """
     mock_page = MagicMock()
-    mock_page.get_text.return_value = "This policy covers fire damage. " * 50  # enough to chunk
+    mock_page.get_text.return_value = "This policy covers fire damage. " * 50
 
     mock_doc = MagicMock()
     mock_doc.__iter__ = MagicMock(return_value=iter([mock_page]))
@@ -49,7 +53,8 @@ def test_load_pdf_returns_chunks():
     mock_doc.__exit__ = MagicMock(return_value=False)
 
     with patch("src.rag.loader.fitz.open", return_value=mock_doc), \
-         patch("pathlib.Path.exists", return_value=True):
+         patch("pathlib.Path.exists", return_value=True), \
+         patch("src.rag.loader.CHUNK_STRATEGY", "fixed_token"):
         chunks = load_pdf("data/policies/fake.pdf")
 
     assert len(chunks) >= 1

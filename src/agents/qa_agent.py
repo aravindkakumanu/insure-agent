@@ -1,8 +1,10 @@
 """
-qa_agent.py — Insurance Policy Q&A Agent
-==========================================
-Responsibility: Wire together the retriever and an LLM to answer questions
-about insurance policy documents.
+qa_agent.py — Stage 1 LCEL RAG Chain (kept for comparison)
+=============================================================
+⚠️  STAGE 1 ONLY — Not used by the /ask endpoint as of Stage 2.
+    The production agent is now src/agents/langgraph_agent.py.
+    This file is preserved so you can compare the simple LCEL
+    pipeline against the full LangGraph agent side-by-side.
 
 HOW IT WORKS (RAG in one sentence):
   Retrieve relevant chunks → Inject them into a prompt → Ask the LLM to answer.

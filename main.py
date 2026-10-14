@@ -11,9 +11,14 @@ HOW TO RUN:
 Then open http://127.0.0.1:8000/docs for the interactive Swagger UI.
 
 ENDPOINTS:
-    POST /ask       — Ask a question about loaded policies
+    POST /ask       — Ask a question (Stage 2: LangGraph agent with memory)
     POST /ingest    — Load a PDF into ChromaDB
     GET  /health    — Simple health check
+
+SESSION MEMORY:
+    /ask accepts an optional session_id field. Pass it back in subsequent
+    requests to ask follow-up questions with conversation history.
+    Omit it (or pass null) to start a fresh session — a new UUID is returned.
 """
 
 import logging
@@ -35,7 +40,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="InsureAgent",
     description="Multi-agent insurance policy Q&A powered by LangChain + OpenAI",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -44,10 +49,20 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 class QuestionRequest(BaseModel):
     question: str = Field(..., min_length=5, description="Your insurance policy question")
+    session_id: str | None = Field(
+        default=None,
+        description=(
+            "Optional session ID for conversation continuity. "
+            "Omit (or pass null) to start a new session. "
+            "Include the session_id returned by a previous /ask call to "
+            "ask follow-up questions with shared conversation history."
+        ),
+    )
 
 
 class QuestionResponse(BaseModel):
     answer: str
+    session_id: str   # always returned so the client can reuse it
     sources: list[str]
 
 
@@ -74,17 +89,27 @@ async def ask_question(body: QuestionRequest) -> QuestionResponse:
     """
     Ask a question about any ingested insurance policy.
 
-    The system retrieves relevant policy excerpts and uses GPT-4o to compose
-    a grounded, accurate answer.
-    """
-    from src.agents.qa_agent import answer_question  # deferred import = faster startup
+    The LangGraph agent decides whether to call search_policy,
+    search_exclusions, or both — then composes a grounded answer from
+    the retrieved policy text using GPT-4o.
 
-    logger.info("Received question: %r", body.question)
+    Pass session_id from a previous response to continue a conversation.
+    Omit it to start fresh. The response always includes the session_id.
+    """
+    # Deferred import: the agent module-level code runs once on first import
+    # (builds the graph, creates MemorySaver). Subsequent calls are fast.
+    from src.agents.langgraph_agent import answer_question
+
+    logger.info("Question (session=%s): %r", body.session_id, body.question)
     try:
-        result = answer_question(body.question)
-        return QuestionResponse(answer=result["answer"], sources=result["sources"])
+        result = answer_question(body.question, session_id=body.session_id)
+        return QuestionResponse(
+            answer=result["answer"],
+            session_id=result["session_id"],
+            sources=result["sources"],
+        )
     except Exception as exc:
-        logger.exception("Error answering question")
+        logger.exception("Error in LangGraph agent")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

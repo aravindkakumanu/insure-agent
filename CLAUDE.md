@@ -10,8 +10,17 @@ Keep it updated as the project evolves.
 | Stage | Description                              | Status         |
 |-------|------------------------------------------|----------------|
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
-| 2     | Multi-agent routing, tool use            | 🔜 Next        |
+| 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
 | 3     | Auth, multi-tenant policies, prod deploy | 🔜 Planned     |
+
+### Stage 2 — Completed Oct 13, 2026
+- Replaced LCEL chain with a LangGraph ReAct agent (`src/agents/langgraph_agent.py`)
+- Two retrieval tools: `search_policy` (general) and `search_exclusions` (exclusion post-filter)
+- LLM decides which tool(s) to call based on the question; can call both for broad queries
+- Conversation memory via `MemorySaver` keyed by `session_id` (in-process, not durable)
+- `/ask` endpoint now accepts optional `session_id` and always returns one
+- `qa_agent.py` preserved as Stage 1 reference but no longer wired to the endpoint
+- Unit test patched to use `fixed_token` strategy (semantic strategy requires live OpenAI calls)
 
 ### Stage 1 — Completed Oct 8, 2026
 - Python venv + all dependencies installed and pinned in `requirements.txt`
@@ -64,6 +73,57 @@ main.py                 ← FastAPI app entry point
 | PDF Parsing  | PyMuPDF (`import pymupdf`)| Fastest and most accurate Python PDF library        |
 | Env Secrets  | python-dotenv            | Load .env files safely into os.environ               |
 | Testing      | pytest                   | Industry standard; fast and readable                 |
+
+---
+
+## Decisions & Lessons Learned (Stage 2)
+
+### 7. LangGraph vs LCEL — use LangGraph when you need loops or decisions
+An LCEL chain is a straight pipeline: `A | B | C`. It cannot loop or branch.
+A LangGraph graph has **nodes** (functions that read/write state) and **edges**
+(connections between nodes, optionally conditional). A conditional edge is what
+makes the agent "decide" — route to the tools node or end.
+
+```
+START → agent_node → [tool_calls?] → tools_node → agent_node (loop)
+                   → [no tools]    → END
+```
+
+Use LCEL for simple, deterministic retrieval. Use LangGraph when the agent
+needs to pick between tools, loop, or maintain memory.
+
+### 8. Two-tool design — general + exclusion-specific
+`search_policy`: standard similarity search, top-k=4.
+`search_exclusions`: similarity search with k=20 then post-filter for exclusion
+keywords ("exclud", "not covered", "we do not cover", etc.). Retrieves k=20
+first because exclusion chunks don't always rank highest in similarity — the
+negation language shifts their embeddings away from affirmative queries.
+
+### 9. Conversation memory — MemorySaver with thread_id
+`MemorySaver` is a dict in the server process keyed by `thread_id` (our
+`session_id`). Each `/ask` call with the same `session_id` rehydrates the
+full message history, so follow-up questions have context.
+**Limitation**: sessions are lost on server restart. For production, swap
+`MemorySaver` for `SqliteSaver` or `RedisSaver` (same API, durable storage).
+
+### 10. Memory window — trim to MEMORY_WINDOW before LLM call
+The full message history grows without bound. In `call_model` we slice to
+`MEMORY_WINDOW = 10` messages (≈ 3–4 full Q&A turns including tool calls)
+before sending to the LLM. The full history stays in MemorySaver; only the
+LLM context is trimmed. We walk forward to the first HumanMessage after
+slicing so the context never starts mid-tool-call.
+
+### 11. LLM lazy initialization
+`ChatOpenAI` must not be instantiated at module level — it reads `OPENAI_API_KEY`
+from the environment at construction time. In FastAPI, `load_dotenv()` runs
+before the deferred import, so it works. But it breaks bare `python -c` imports
+and test runs. Solution: `_get_llm()` singleton that initializes on first call.
+
+### 12. Unit tests must not call OpenAI
+The `test_load_pdf_returns_chunks` test patches `CHUNK_STRATEGY = "fixed_token"`
+so it never hits the semantic chunker (which calls the OpenAI embeddings API).
+Rule: unit tests must be fully offline. Integration tests that need a real API
+key belong in a separate `tests/integration/` folder (not yet created).
 
 ---
 
