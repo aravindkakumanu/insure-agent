@@ -58,6 +58,7 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     SystemMessage,
+    trim_messages,
 )
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
@@ -84,22 +85,33 @@ MEMORY_WINDOW = 10
 SYSTEM_PROMPT = """\
 You are an expert insurance policy analyst with access to two search tools:
 
-  • search_policy     — searches all policy content for general information
+  • search_policy     — searches all policy content for general information,
+                        coverage grants, definitions, and procedures
   • search_exclusions — searches specifically for exclusions, limitations,
                         and things NOT covered by the policy
 
-How to decide which tool(s) to call:
-  - "What does my policy cover for X?"         → search_policy
-  - "What's NOT covered / excluded for X?"     → search_exclusions
-  - "Tell me everything about X" / broad query → call BOTH tools
-  - Follow-up like "what about mold?" after a  → use same tool(s) as before
-    water damage question
+DEFAULT BEHAVIOR — call BOTH tools for any question about a specific topic:
+  When a user asks about water damage, mold, theft, fire, liability, or any
+  other specific subject, ALWAYS call both search_policy AND search_exclusions.
+  Then synthesize the results into a complete answer that covers:
+    1. What IS covered (from search_policy)
+    2. What is NOT covered or excluded (from search_exclusions)
+    3. Any dollar limits or conditions mentioned in either result
+
+EXCEPTIONS — call only one tool when the question is explicitly one-sided:
+  - "What does my policy cover for X?" (no mention of exclusions) → search_policy only
+  - "What's excluded for X?" / "What's not covered?" → search_exclusions only
+
+Follow-up questions: if the user asks a follow-up like "what about mold?"
+after a water damage question, apply the same default — call both tools
+in the context of the previous topic.
 
 Rules for answering:
   - Base answers ONLY on retrieved policy text — never make things up
-  - Quote the relevant policy section when possible
-  - Explain insurance jargon in plain English after quoting
-  - If retrieved text doesn't answer the question, say so clearly
+  - Quote the relevant policy section, then explain it in plain English
+  - Clearly separate what IS covered from what IS NOT covered
+  - If retrieved text doesn't answer part of the question, say so explicitly
+  - Never leave the user wondering "but what's the catch?" — always include limits
 """
 
 # ---------------------------------------------------------------------------
@@ -236,19 +248,26 @@ def call_model(state: AgentState) -> dict:
       • An AIMessage with tool_calls  → graph will route to the tools node
       • An AIMessage with just content → graph will end
     """
-    messages = state["messages"]
-
-    # Trim to last MEMORY_WINDOW messages.
-    # We slice from the end rather than using trim_messages here for simplicity.
-    # We then scan backwards to find the first HumanMessage so we never start
-    # the context mid-tool-call (which confuses the LLM).
-    if len(messages) > MEMORY_WINDOW:
-        messages = messages[-MEMORY_WINDOW:]
-        # Walk forward until we find a HumanMessage to start from
-        for i, msg in enumerate(messages):
-            if isinstance(msg, HumanMessage):
-                messages = messages[i:]
-                break
+    # Keep the last MEMORY_WINDOW messages (token_counter=len counts each
+    # message as 1). start_on="human" guarantees the window never begins
+    # mid-tool-call, which OpenAI rejects (a ToolMessage with no preceding
+    # tool_call).
+    all_messages = state["messages"]
+    messages = trim_messages(
+        all_messages,
+        max_tokens=MEMORY_WINDOW,
+        token_counter=len,
+        strategy="last",
+        start_on="human",
+    )
+    if not messages:
+        # The current turn alone exceeds the window (many tool round trips), so
+        # no HumanMessage fit. Keep the whole current turn rather than lose the
+        # question.
+        last_human = max(
+            i for i, m in enumerate(all_messages) if isinstance(m, HumanMessage)
+        )
+        messages = all_messages[last_human:]
 
     response = _get_llm().invoke([SystemMessage(content=SYSTEM_PROMPT)] + messages)
     logger.info(

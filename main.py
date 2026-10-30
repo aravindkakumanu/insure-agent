@@ -85,9 +85,12 @@ async def health_check() -> dict:
 
 
 @app.post("/ask", response_model=QuestionResponse, tags=["Q&A"])
-async def ask_question(body: QuestionRequest) -> QuestionResponse:
+def ask_question(body: QuestionRequest) -> QuestionResponse:
     """
     Ask a question about any ingested insurance policy.
+
+    Plain `def` (not `async def`): the agent makes blocking OpenAI calls, so
+    FastAPI runs this in its threadpool instead of stalling the event loop.
 
     The LangGraph agent decides whether to call search_policy,
     search_exclusions, or both — then composes a grounded answer from
@@ -114,9 +117,12 @@ async def ask_question(body: QuestionRequest) -> QuestionResponse:
 
 
 @app.post("/ingest", response_model=IngestResponse, tags=["Ingestion"])
-async def ingest_pdf(body: IngestRequest) -> IngestResponse:
+def ingest_pdf(body: IngestRequest) -> IngestResponse:
     """
     Load a PDF file from disk, chunk it, embed it, and store it in ChromaDB.
+
+    Plain `def` so the blocking PDF parsing and embedding calls run in the
+    threadpool. Re-ingesting the same file replaces its chunks.
 
     After ingesting, you can ask questions about its content via /ask.
     """
