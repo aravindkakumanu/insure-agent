@@ -512,3 +512,11 @@ def test_exclusions_agent_fallback_chunks_give_medium(monkeypatch: pytest.Monkey
 
     assert result.sources == ["p.pdf"]  # text came back...
     assert result.confidence == "medium"  # ...but it isn't evidence of an exclusion
+
+
+def test_exclusion_keywords_match_exclusion_and_exclusions() -> None:
+    """Regression: the stem "exclud" does not match "exclusion(s)"."""
+    assert "exclud" not in "exclusion"  # why a separate keyword is needed
+    for text in ("SECTION I - EXCLUSIONS", "The following exclusion applies."):
+        result = _named_tool_msg("search_exclusions", f"[Source: p.pdf]\n{text}")
+        assert assess_confidence([HumanMessage(content="q"), result], fell_back=False) == "high"

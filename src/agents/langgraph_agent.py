@@ -136,9 +136,11 @@ Rules for answering:
 # ---------------------------------------------------------------------------
 
 # Keywords that signal an exclusion or limitation clause.
-# Using stems (e.g. "exclud") catches "exclude", "excluded", "exclusion".
+# Substring stems: "exclud" catches "exclude"/"excluded"/"excluding", but NOT
+# "exclusion"/"exclusions" (exclu-s-ion), so that is listed separately.
 _EXCLUSION_KEYWORDS = [
     "exclud",
+    "exclusion",
     "not covered",
     "we do not cover",
     "does not cover",

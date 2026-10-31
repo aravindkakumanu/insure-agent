@@ -261,20 +261,14 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
   and imports the keyword list from `langgraph_agent.py` so it lives in one place.
   Still a heuristic: a keyword hit means exclusion wording is present, not that
   it answers the question.
-- **Known flaw in the keyword list (Stage 2, not fixed):** its comment claims the
-  stem `"exclud"` catches "exclusion", but `"exclud" in "exclusion"` is False
-  (exclu-s-ion). On the 69 ingested chunks, 31 match a keyword and 1 mentions
-  "exclusion" without matching any. That chunk can be missed by the tool's filter
-  and, now, flagged `medium`. Adding `"exclusion"` to `_EXCLUSION_KEYWORDS` fixes
-  both; `langgraph_agent.py` was left untouched as the Stage 2 reference.
-- **Merge uses the fields:** one result passes through unchanged; several become
-  headed sections; a section with `low` confidence gets a caution appended (the
-  Exclusions one says "Do not assume nothing is excluded", because a failed
-  exclusions search merged into a confident answer reads as "nothing excluded");
-  sources are the sorted union; overall confidence is the weakest of the parts.
-- `/ask` also returns `confidence`.
-- Sources come from `ToolMessage`s only, so quoted `[Source: ...]` text in a
-  user or AI message can't be mistaken for a citation.
+- **Keyword-list fix (Oct 30, 2026):** `_EXCLUSION_KEYWORDS` had a comment claiming
+  the stem `"exclud"` catches "exclusion", but `"exclud" in "exclusion"` is False
+  (exclu-s-ion), so "Exclusions" headings were missed by the tool's filter and
+  flagged `medium` by the check above. Added `"exclusion"` to the list (the one
+  deliberate edit to the Stage 2 file) and corrected the comment. On the 69
+  ingested chunks, matches went 31 → 32. Lesson: verify a "stem" claim with `in`
+  before trusting a comment; `test_exclusion_keywords_match_exclusion_and_exclusions`
+  pins it.
 
 ### 23. Guardrails
 `route_and_answer()` runs `check_prompt_injection()` FIRST (before the classifier,
