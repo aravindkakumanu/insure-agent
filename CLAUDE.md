@@ -11,7 +11,19 @@ Keep it updated as the project evolves.
 |-------|------------------------------------------|----------------|
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
-| 3     | Multi-agent router — router LLM + Coverage Agent, Exclusions Agent, Claims Agent as specialist sub-agents, each with own system prompt and tool subset. | 🚧 In progress |
+| 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | 🚧 In progress |
+
+### Stage 3 — Multi-agent router (in progress)
+- `src/agents/router.py`: `classify_intent()` (one structured-output LLM call, not a
+  graph) + `route_and_answer()` (fan-out, merge, session pass-through)
+- `coverage_agent.py` (`search_policy`), `exclusions_agent.py` (`search_exclusions`),
+  `claims_agent.py` (both tools): each its own compiled graph, MemorySaver,
+  `answer_question()`, and `MAX_ITERATIONS` guard
+- `/ask` now goes through the router; `QuestionResponse` has `agent` and `confidence`
+- Specialists return typed `AgentResult`s; the router merges them into a `RouterResult`
+- `langgraph_agent.py` is untouched (Stage 2 reference; the specialists import its tools)
+- Tests: `tests/test_router.py` (offline)
+- Not yet verified against the real OpenAI API: run the curl checks in lesson 20
 
 ### Stage 2 hardening — Oct 30, 2026
 - `/ask` and `/ingest` are plain `def` (threadpool) instead of `async def`
@@ -175,6 +187,80 @@ Lessons:
 - **Test with a fake LLM.** `LoopingLLM` always requests a tool and the vector
   store is patched, so the scenario is fully offline (rule 12).
 
+### 17. Router = a classifier call, not a graph
+Routing is one decision with no loop, so `classify_intent()` is a single
+structured-output call (`with_structured_output(IntentClassification)`, `Literal`
+labels) on a small model (`gpt-4o-mini`). Use LangGraph only where there is a loop.
+If classification fails it logs a warning and returns `coverage`, never raising,
+because coverage fans out to exclusions too and is the least one-sided default.
+
+### 18. Fan out coverage questions
+Routing a coverage question to the Coverage Agent alone reintroduces the problem
+the Stage 2 prompt solved: an answer about what IS covered that hides what is NOT.
+So `coverage` → Coverage Agent AND Exclusions Agent, run in parallel threads
+(each blocks on OpenAI), merged as "What IS covered" / "What is NOT covered".
+Limits and conditions come from the Coverage prompt, which must include them.
+`exclusions` → Exclusions Agent only. `claims` → Claims Agent only (it already
+uses both tools). The merge is deterministic, not an LLM call: cheaper, and no
+risk of the merge step inventing text. It now works on typed `AgentResult`s
+(lesson 22). Trade-off: slightly more repetitive than a synthesized answer.
+
+### 19. No new tool for claims
+The vector store holds one policy document with no separate claims section, so a
+`search_claims_procedures` tool would imply data that doesn't exist. The Claims
+Agent reuses `search_policy` + `search_exclusions` and gets its claims focus from
+its system prompt (queries like "duties after loss", "proof of loss").
+
+### 20. Sessions across several agents
+Each specialist has its own `MemorySaver`; the same `session_id` is the
+`thread_id` in each, so histories are independent per agent. The router keeps
+`_session_intent[session_id]` and passes the previous label to the classifier so
+a bare follow-up ("what about mold?") returns the same intent and lands on the
+same agent(s). Known limits (both in-process, lost on restart): that map, and
+a session whose intent changes mid-conversation will hit an agent that has not
+seen the earlier turns.
+Also: sources are collected from the current turn only. Stage 2 scanned the
+whole session history, so sources from earlier questions leaked into later ones.
+To check against the real API:
+```bash
+curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" \
+  -d '{"question": "Is water damage covered?"}'   # expect agent=coverage+exclusions
+curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" \
+  -d '{"question": "How do I file a claim?"}'     # expect agent=claims
+```
+
+### 21. Duplication is deliberate (for now)
+The three specialist files are near-identical (prompt and tool subset differ).
+That was the requested structure, and it keeps each agent readable on its own.
+Extract a shared `build_agent(name, prompt, tools)` factory if a fourth agent
+appears or the loop/guard logic changes.
+
+### 22. Typed results: AgentResult → RouterResult
+Specialists return `AgentResult(answer, sources, agent_name, confidence,
+session_id)`; `merge_results()` in `router.py` builds a `RouterResult` from them
+(`answer`, `sources`, `agent`, `intent`, `confidence`, per-agent `results`).
+Types live in `src/agents/results.py` because the router imports the
+specialists, so the specialists can't import from the router (cycle). That module
+also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
+- `session_id` rides on `AgentResult` (a fifth field) so a specialist called
+  standalone still returns the id it generated.
+- **Confidence measures grounding, not correctness.** It is derived from tool
+  results, never from the LLM's self-rating (uncalibrated): `low` = guard tripped,
+  no tool called, or no tool returned text; `medium` = some returned text, some
+  didn't; `high` = every tool call returned text. "Returned text" is detected by
+  the `[Source: ...]` label every non-empty tool result carries, so it does not
+  depend on the tools' empty-result wording. Known blind spot: `search_exclusions`
+  falls back to unfiltered chunks when no exclusion keywords match, which still
+  counts as text, so `high` there does not prove an exclusion was found.
+- **Merge uses the fields:** one result passes through unchanged; several become
+  headed sections; a section with `low` confidence gets a caution appended (the
+  Exclusions one says "Do not assume nothing is excluded", because a failed
+  exclusions search merged into a confident answer reads as "nothing excluded");
+  sources are the sorted union; overall confidence is the weakest of the parts.
+- `/ask` also returns `confidence`.
+- Sources come from `ToolMessage`s only, so quoted `[Source: ...]` text in a
+  user or AI message can't be mistaken for a citation.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -297,7 +383,11 @@ uvicorn main:app --reload
 | `src/rag/embedder.py`       | Chunks → Vectors → ChromaDB (text-embedding-3-small)  |
 | `src/rag/retriever.py`      | Query ChromaDB, return top-k semantically similar docs |
 | `src/agents/qa_agent.py`    | LCEL RAG chain: retriever + GPT-4o + prompt           |
-| `src/agents/langgraph_agent.py` | LangGraph agent, tools, memory, doom-loop guard   |
+| `src/agents/langgraph_agent.py` | Stage 2 agent + the two retrieval tools (reference) |
+| `src/agents/router.py`      | Intent classifier, fan-out, `merge_results`, session pass-through |
+| `src/agents/results.py`     | `AgentResult` / `RouterResult` + confidence and source helpers |
+| `src/agents/{coverage,exclusions,claims}_agent.py` | Stage 3 specialists |
+| `tests/test_router.py`      | Offline router and specialist tests                   |
 | `tests/test_agent_guard.py` | Offline doom-loop scenario and guard tests            |
 | `main.py`                   | FastAPI routes: /health, /ingest, /ask                |
 | `tests/test_loader.py`      | Unit tests for PDF loading and chunking               |

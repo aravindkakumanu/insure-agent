@@ -64,6 +64,8 @@ class QuestionResponse(BaseModel):
     answer: str
     session_id: str   # always returned so the client can reuse it
     sources: list[str]
+    agent: str        # which specialist(s) handled it, e.g. "coverage+exclusions"
+    confidence: str   # "high" | "medium" | "low": how well grounded in retrieved text
 
 
 class IngestRequest(BaseModel):
@@ -92,27 +94,29 @@ def ask_question(body: QuestionRequest) -> QuestionResponse:
     Plain `def` (not `async def`): the agent makes blocking OpenAI calls, so
     FastAPI runs this in its threadpool instead of stalling the event loop.
 
-    The LangGraph agent decides whether to call search_policy,
-    search_exclusions, or both — then composes a grounded answer from
-    the retrieved policy text using GPT-4o.
+    A lightweight classifier routes the question to specialist agents:
+    coverage questions run the Coverage and Exclusions agents and merge their
+    answers, exclusions questions run the Exclusions agent, and claims
+    questions run the Claims agent. The `agent` field says which handled it.
 
     Pass session_id from a previous response to continue a conversation.
     Omit it to start fresh. The response always includes the session_id.
     """
-    # Deferred import: the agent module-level code runs once on first import
-    # (builds the graph, creates MemorySaver). Subsequent calls are fast.
-    from src.agents.langgraph_agent import answer_question
+    # Deferred import: the agent modules build their graphs on first import.
+    from src.agents.router import route_and_answer
 
     logger.info("Question (session=%s): %r", body.session_id, body.question)
     try:
-        result = answer_question(body.question, session_id=body.session_id)
+        result = route_and_answer(body.question, session_id=body.session_id)
         return QuestionResponse(
-            answer=result["answer"],
-            session_id=result["session_id"],
-            sources=result["sources"],
+            answer=result.answer,
+            session_id=result.session_id,
+            sources=result.sources,
+            agent=result.agent,
+            confidence=result.confidence,
         )
     except Exception as exc:
-        logger.exception("Error in LangGraph agent")
+        logger.exception("Error in router / specialist agents")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
