@@ -82,6 +82,23 @@ logger = logging.getLogger(__name__)
 # So MEMORY_WINDOW = 10 ≈ last 3–4 full conversation turns.
 MEMORY_WINDOW = 10
 
+# Doom-loop guard: max agent-node visits per question. A legitimate question
+# needs only a handful; hitting this means the agent is stuck re-calling tools.
+MAX_ITERATIONS = 25
+
+# Hard backstop below LangGraph's own limit. LangGraph counts every node run
+# (agent AND tools) as a step, so one agent visit with a tool call = 2 steps.
+# Set explicitly because the default varies by version (10007 in langgraph
+# 1.2.x, 25 in older releases); it must stay above 2 * MAX_ITERATIONS or
+# GraphRecursionError would pre-empt our friendlier fallback.
+RECURSION_LIMIT = 2 * MAX_ITERATIONS + 5
+
+FALLBACK_ANSWER = (
+    "I wasn't able to complete this request - I kept searching the policy "
+    "without reaching an answer. Please try rephrasing your question or "
+    "asking about one specific topic at a time."
+)
+
 SYSTEM_PROMPT = """\
 You are an expert insurance policy analyst with access to two search tools:
 
@@ -217,6 +234,10 @@ class AgentState(TypedDict):
     the list. This is how conversation history accumulates automatically.
     """
     messages: Annotated[list[BaseMessage], add_messages]
+    # Agent-node visits for the current question. No reducer, so the value
+    # passed in at invoke time OVERWRITES the checkpointed one - answer_question
+    # sends 0 on every new question so the count never leaks across turns.
+    step_counter: int
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +268,16 @@ def call_model(state: AgentState) -> dict:
     the LLM. The LLM response is either:
       • An AIMessage with tool_calls  → graph will route to the tools node
       • An AIMessage with just content → graph will end
+
+    Doom-loop guard: every visit increments step_counter. Past MAX_ITERATIONS
+    we return a fallback answer WITHOUT calling the LLM; it has no tool_calls,
+    so should_continue routes to END.
     """
+    step = state.get("step_counter", 0) + 1
+    if step > MAX_ITERATIONS:
+        logger.warning("Doom-loop guard tripped at step %d; returning fallback", step)
+        return {"messages": [AIMessage(content=FALLBACK_ANSWER)], "step_counter": step}
+
     # Keep the last MEMORY_WINDOW messages (token_counter=len counts each
     # message as 1). start_on="human" guarantees the window never begins
     # mid-tool-call, which OpenAI rejects (a ToolMessage with no preceding
@@ -274,7 +304,7 @@ def call_model(state: AgentState) -> dict:
         "LLM response: tool_calls=%s",
         [tc["name"] for tc in response.tool_calls] if response.tool_calls else "none",
     )
-    return {"messages": [response]}
+    return {"messages": [response], "step_counter": step}
 
 
 def should_continue(state: AgentState) -> str:
@@ -369,10 +399,13 @@ def answer_question(question: str, session_id: Optional[str] = None) -> dict:
     else:
         logger.info("Resuming session: %s", session_id)
 
-    config = {"configurable": {"thread_id": session_id}}
+    config = {
+        "configurable": {"thread_id": session_id},
+        "recursion_limit": RECURSION_LIMIT,
+    }
 
     result = _agent.invoke(
-        {"messages": [HumanMessage(content=question)]},
+        {"messages": [HumanMessage(content=question)], "step_counter": 0},
         config=config,
     )
 

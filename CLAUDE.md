@@ -11,7 +11,15 @@ Keep it updated as the project evolves.
 |-------|------------------------------------------|----------------|
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
-| 3     | Auth, multi-tenant policies, prod deploy | 🔜 Planned     |
+| 3     | Multi-agent router — router LLM + Coverage Agent, Exclusions Agent, Claims Agent as specialist sub-agents, each with own system prompt and tool subset. | 🚧 In progress |
+
+### Stage 2 hardening — Oct 30, 2026
+- `/ask` and `/ingest` are plain `def` (threadpool) instead of `async def`
+- `get_vector_store()` cached with `@lru_cache`; ingestion is idempotent
+  (SHA-256 chunk IDs + delete-by-source before add)
+- Memory trimming uses `trim_messages(start_on="human")`
+- Doom-loop guard: `step_counter` in `AgentState` + `MAX_ITERATIONS = 25`
+  (see lesson 16); tests in `tests/test_agent_guard.py`
 
 ### Stage 2 — Completed Oct 13, 2026
 - Replaced LCEL chain with a LangGraph ReAct agent (`src/agents/langgraph_agent.py`)
@@ -124,6 +132,48 @@ The `test_load_pdf_returns_chunks` test patches `CHUNK_STRATEGY = "fixed_token"`
 so it never hits the semantic chunker (which calls the OpenAI embeddings API).
 Rule: unit tests must be fully offline. Integration tests that need a real API
 key belong in a separate `tests/integration/` folder (not yet created).
+
+### 13. Plain `def` routes for blocking work
+FastAPI runs `def` routes in a threadpool; `async def` routes run on the event
+loop. Our agent and PDF code are synchronous and block on OpenAI, so `async def`
+froze every other request. Use `async def` only with an async client end to end
+(`ainvoke` + async tools), which would have been a much bigger change.
+
+### 14. Cache clients with `@lru_cache`, build lazily
+`get_vector_store()` was rebuilding the embeddings client and Chroma handle on
+every tool call. `@lru_cache(maxsize=1)` builds it once on first call (lazy, so
+imports still work without `OPENAI_API_KEY`).
+
+### 15. Idempotent ingestion
+Chunk ID = `sha256(f"{source}:{index}")`, plus `delete(where={"source": ...})`
+before `add_documents`. IDs alone are not enough: a re-ingested PDF that yields
+fewer chunks would leave stale high-index chunks behind.
+`trim_messages(start_on="human")` can also return an EMPTY list when the current
+turn alone exceeds the window; `call_model` falls back to the whole current turn.
+
+### 16. Doom-loop guard — failure-then-fix
+**Failure:** an agent whose LLM keeps requesting tools never reaches END. Each
+loop costs an LLM call plus a tool call, so a stuck agent burns tokens and
+latency until something external stops it.
+**Fix:** `step_counter` in `AgentState`, incremented on every `call_model` visit.
+Past `MAX_ITERATIONS` (25) it returns `FALLBACK_ANSWER` with no tool_calls, so
+`should_continue` routes to END without another LLM call.
+Lessons:
+- **Reset per question.** State persists in `MemorySaver` per session. A plain
+  `int` field (no reducer) is overwritten by whatever is passed at invoke time,
+  so `answer_question` sends `"step_counter": 0` every time. Without that, a
+  healthy session would trip the guard after ~10 questions
+  (`test_counter_resets_between_turns` pins this).
+- **Pick the limit above legitimate use.** Tool-using questions take a few agent
+  visits; 25 only fires on genuine loops, not complex questions.
+- **Set `recursion_limit` explicitly.** LangGraph also has its own step limit
+  (every node run counts, so one agent+tool cycle = 2 steps), and its default
+  differs by version: 10007 in langgraph 1.2.x, 25 in older releases. We pass
+  `RECURSION_LIMIT = 2 * MAX_ITERATIONS + 5` so it is a backstop above our
+  guard in any version. I first assumed the default was 25 and was wrong; an
+  empirical check caught it.
+- **Test with a fake LLM.** `LoopingLLM` always requests a tool and the vector
+  store is patched, so the scenario is fully offline (rule 12).
 
 ---
 
@@ -247,6 +297,8 @@ uvicorn main:app --reload
 | `src/rag/embedder.py`       | Chunks → Vectors → ChromaDB (text-embedding-3-small)  |
 | `src/rag/retriever.py`      | Query ChromaDB, return top-k semantically similar docs |
 | `src/agents/qa_agent.py`    | LCEL RAG chain: retriever + GPT-4o + prompt           |
+| `src/agents/langgraph_agent.py` | LangGraph agent, tools, memory, doom-loop guard   |
+| `tests/test_agent_guard.py` | Offline doom-loop scenario and guard tests            |
 | `main.py`                   | FastAPI routes: /health, /ingest, /ask                |
 | `tests/test_loader.py`      | Unit tests for PDF loading and chunking               |
 | `.env.example`              | Template for required environment variables           |
