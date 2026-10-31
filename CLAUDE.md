@@ -21,6 +21,8 @@ Keep it updated as the project evolves.
   `answer_question()`, and `MAX_ITERATIONS` guard
 - `/ask` now goes through the router; `QuestionResponse` has `agent` and `confidence`
 - Specialists return typed `AgentResult`s; the router merges them into a `RouterResult`
+- Guardrails (`src/agents/guardrails.py`): injection check before routing, PII
+  scrubbing + low-confidence warning after; `GuardrailViolation` → HTTP 400
 - `langgraph_agent.py` is untouched (Stage 2 reference; the specialists import its tools)
 - Tests: `tests/test_router.py` (offline)
 - Not yet verified against the real OpenAI API: run the curl checks in lesson 20
@@ -261,6 +263,38 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
 - Sources come from `ToolMessage`s only, so quoted `[Source: ...]` text in a
   user or AI message can't be mistaken for a citation.
 
+### 23. Guardrails
+`route_and_answer()` runs `check_prompt_injection()` FIRST (before the classifier,
+the agents, or any session state), then `apply_output_guardrails()` on the merged
+result. `GuardrailViolation` is mapped to a 400 in `main.py` (a client error, not
+a 500); its message is written to be shown to the user.
+- **Injection detection is a tripwire, not a defence.** It is regex phrase
+  matching ("ignore your instructions", "pretend you are", "disregard/forget the
+  policy", "say the policy covers everything", plus close variants), so rewording
+  evades it, and it has false positives ("should I forget the policy
+  deductible?"). The real protection is the specialists' prompts, which answer
+  only from retrieved text. Extend `_INJECTION_PATTERNS` in one place.
+- **SSN:** `XXX-XX-XXXX` → `[REDACTED-SSN]`. Misses dashless SSNs, names, addresses.
+- **Policy-number-like IDs:** a bare "8+ alphanumerics" rule would redact ordinary
+  words, so a token must be 8+ chars of letters/digits/hyphens containing at least
+  one letter AND one digit, as a whole token. Deliberately left alone: plain words,
+  plain numbers, dates, PDF filenames (`apc220-ho-policy-jacket.pdf`; no match if
+  followed by `.<letter>`), and UUID session ids (otherwise every session id in the
+  logs would be redacted). Measured on the 69 ingested policy chunks: 0 matches,
+  so no false positives on the real document. True positives are only
+  covered by synthetic tests, since the real policy has no IDs in it.
+- **Logs are scrubbed in a `Formatter`, not at call sites.** The question is logged
+  in several places; `PIIScrubbingFormatter` scrubs the final formatted line, so
+  messages, args, tracebacks and library logs are all covered.
+  `install_log_scrubbing()` is called in `main.py` right after `basicConfig`.
+  It only covers handlers on the root logger.
+- The answer AND each specialist's answer in `RouterResult.results` are scrubbed.
+- **Confidence gate:** `low` prepends "⚠️ Warning: limited policy text was found
+  for this question. This answer may be incomplete." For a coverage+exclusions
+  merge this can sit alongside the per-section cautions from `merge_results`
+  (lesson 22): the section note says WHICH part is weak, the warning says the
+  whole answer is.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -385,6 +419,8 @@ uvicorn main:app --reload
 | `src/agents/qa_agent.py`    | LCEL RAG chain: retriever + GPT-4o + prompt           |
 | `src/agents/langgraph_agent.py` | Stage 2 agent + the two retrieval tools (reference) |
 | `src/agents/router.py`      | Intent classifier, fan-out, `merge_results`, session pass-through |
+| `src/agents/guardrails.py`  | Injection check, PII scrubbing (answers + logs), confidence gate |
+| `tests/test_guardrails.py`  | Offline guardrail tests                               |
 | `src/agents/results.py`     | `AgentResult` / `RouterResult` + confidence and source helpers |
 | `src/agents/{coverage,exclusions,claims}_agent.py` | Stage 3 specialists |
 | `tests/test_router.py`      | Offline router and specialist tests                   |

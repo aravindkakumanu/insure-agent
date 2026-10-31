@@ -28,10 +28,13 @@ from dotenv import load_dotenv  # loads .env file into os.environ BEFORE anythin
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from src.agents.guardrails import GuardrailViolation, install_log_scrubbing
+
 # Load .env FIRST — so OPENAI_API_KEY is available when LangChain initialises
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+install_log_scrubbing()  # redact SSNs / policy numbers from every log line
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -115,6 +118,8 @@ def ask_question(body: QuestionRequest) -> QuestionResponse:
             agent=result.agent,
             confidence=result.confidence,
         )
+    except GuardrailViolation as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Error in router / specialist agents")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

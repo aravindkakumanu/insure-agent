@@ -13,6 +13,10 @@ Each specialist returns a typed AgentResult (answer, sources, agent_name,
 confidence); merge_results() assembles those into a RouterResult from the
 structured fields rather than by gluing strings together. See results.py.
 
+GUARDRAILS (guardrails.py): route_and_answer() rejects prompt injections before
+anything else runs, and passes every result through PII scrubbing and
+confidence gating on the way out.
+
 Coverage questions always fan out to the Exclusions Agent too, for the same
 reason as the Stage 2 system prompt: an answer about what IS covered that
 leaves out what is NOT covered misleads the user.
@@ -34,6 +38,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from src.agents import claims_agent, coverage_agent, exclusions_agent
+from src.agents.guardrails import apply_output_guardrails, check_prompt_injection
 from src.agents.results import AgentResult, RouterResult, weakest_confidence
 
 logger = logging.getLogger(__name__)
@@ -189,7 +194,13 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
 
     The RouterResult's `agent` names what handled it: "coverage+exclusions",
     "exclusions", or "claims".
+
+    Raises:
+        GuardrailViolation: the question looks like a prompt injection. Checked
+            first, so nothing (classifier, agents, session state) sees it.
     """
+    check_prompt_injection(question)
+
     if session_id is None:
         session_id = str(uuid.uuid4())
 
@@ -207,4 +218,4 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
             exc_future = pool.submit(exclusions_agent.answer_question, question, session_id)
             results = [cov_future.result(), exc_future.result()]
 
-    return merge_results(results, session_id, intent)
+    return apply_output_guardrails(merge_results(results, session_id, intent))
