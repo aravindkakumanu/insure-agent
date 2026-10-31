@@ -366,7 +366,7 @@ def test_specialist_confidence_from_retrieval(
 
     store = MagicMock()
     store.similarity_search.return_value = [
-        Document(page_content="fire is covered. exclusions apply", metadata={"source": "p.pdf"})
+        Document(page_content="Fire loss is excluded if arson.", metadata={"source": "p.pdf"})
     ]
     monkeypatch.setattr(stage2, "get_vector_store", lambda: store)
     grounded = module.answer_question("Is fire covered?", "conf-grounded")
@@ -441,3 +441,74 @@ def test_merge_unions_sources_and_keeps_breakdown() -> None:
 def test_merge_requires_a_result() -> None:
     with pytest.raises(ValueError):
         merge_results([], "s", "coverage")
+
+
+# ---------------------------------------------------------------------------
+# search_exclusions special case: text without exclusion language caps at medium
+# ---------------------------------------------------------------------------
+
+
+def _named_tool_msg(name: str, content: str, i: int = 0) -> ToolMessage:
+    return ToolMessage(content=content, tool_call_id=f"n{i}", name=name)
+
+
+EXCL_TEXT = "[Source: policy.pdf]\nWe do not cover loss caused by flood."
+NON_EXCL_TEXT = "[Source: policy.pdf]\nYour dwelling is protected against fire."
+
+
+def test_exclusions_result_with_keyword_is_high() -> None:
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_exclusions", EXCL_TEXT)]
+    assert assess_confidence(turn, fell_back=False) == "high"
+
+
+def test_exclusions_result_without_keyword_is_medium() -> None:
+    """The fallback case: search_exclusions returned unfiltered chunks."""
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_exclusions", NON_EXCL_TEXT)]
+    assert assess_confidence(turn, fell_back=False) == "medium"  # not high, not low
+
+
+def test_special_case_only_applies_to_search_exclusions() -> None:
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_policy", NON_EXCL_TEXT)]
+    assert assess_confidence(turn, fell_back=False) == "high"
+
+
+def test_exclusion_keyword_in_source_label_does_not_count() -> None:
+    text = "[Source: excluded-items.pdf]\nYour dwelling is protected against fire."
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_exclusions", text)]
+    assert assess_confidence(turn, fell_back=False) == "medium"
+
+
+def test_keyword_match_is_case_insensitive() -> None:
+    text = "[Source: p.pdf]\nThis Policy Does Not Cover earthquake."
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_exclusions", text)]
+    assert assess_confidence(turn, fell_back=False) == "high"
+
+
+def test_one_unconfirmed_exclusions_result_lowers_a_mixed_turn() -> None:
+    turn = [
+        HumanMessage(content="q"),
+        _named_tool_msg("search_exclusions", EXCL_TEXT, 1),
+        _named_tool_msg("search_exclusions", NON_EXCL_TEXT, 2),
+    ]
+    assert assess_confidence(turn, fell_back=False) == "medium"
+
+
+def test_empty_result_still_wins_over_special_case() -> None:
+    turn = [HumanMessage(content="q"), _named_tool_msg("search_exclusions", EMPTY)]
+    assert assess_confidence(turn, fell_back=False) == "low"  # nothing returned at all
+
+
+def test_exclusions_agent_fallback_chunks_give_medium(monkeypatch: pytest.MonkeyPatch) -> None:
+    """End to end through the real tool: no exclusion wording in any chunk."""
+    store = MagicMock()
+    store.similarity_search.return_value = [
+        Document(page_content="Your dwelling is protected.", metadata={"source": "p.pdf"})
+    ]
+    monkeypatch.setattr(stage2, "get_vector_store", lambda: store)
+    llm = OneToolThenAnswerLLM(tool="search_exclusions")
+    monkeypatch.setattr(exclusions_agent, "_get_llm", lambda: llm)
+
+    result = exclusions_agent.answer_question("What is excluded for fire?", "fallback-test")
+
+    assert result.sources == ["p.pdf"]  # text came back...
+    assert result.confidence == "medium"  # ...but it isn't evidence of an exclusion

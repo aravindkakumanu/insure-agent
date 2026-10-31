@@ -251,9 +251,22 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
   no tool called, or no tool returned text; `medium` = some returned text, some
   didn't; `high` = every tool call returned text. "Returned text" is detected by
   the `[Source: ...]` label every non-empty tool result carries, so it does not
-  depend on the tools' empty-result wording. Known blind spot: `search_exclusions`
-  falls back to unfiltered chunks when no exclusion keywords match, which still
-  counts as text, so `high` there does not prove an exclusion was found.
+  depend on the tools' empty-result wording.
+- **`search_exclusions` special case.** The tool falls back to unfiltered chunks
+  when no retrieved chunk has exclusion wording. That is text, but not evidence
+  of an exclusion, so a `search_exclusions` result with none of
+  `_EXCLUSION_KEYWORDS` caps confidence at `medium` (not `low`: text did come
+  back). The check strips `[Source: ...]` labels first so a filename like
+  `exclusions.pdf` can't count, keys on `ToolMessage.name` (set by `ToolNode`),
+  and imports the keyword list from `langgraph_agent.py` so it lives in one place.
+  Still a heuristic: a keyword hit means exclusion wording is present, not that
+  it answers the question.
+- **Known flaw in the keyword list (Stage 2, not fixed):** its comment claims the
+  stem `"exclud"` catches "exclusion", but `"exclud" in "exclusion"` is False
+  (exclu-s-ion). On the 69 ingested chunks, 31 match a keyword and 1 mentions
+  "exclusion" without matching any. That chunk can be missed by the tool's filter
+  and, now, flagged `medium`. Adding `"exclusion"` to `_EXCLUSION_KEYWORDS` fixes
+  both; `langgraph_agent.py` was left untouched as the Stage 2 reference.
 - **Merge uses the fields:** one result passes through unchanged; several become
   headed sections; a section with `low` confidence gets a caution appended (the
   Exclusions one says "Do not assume nothing is excluded", because a failed
