@@ -26,6 +26,8 @@ import pymupdf as fitz  # PyMuPDF — newer versions prefer `import pymupdf`
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from src.rag.structure import annotate_chunks
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -140,7 +142,8 @@ def load_pdf(pdf_path: str | Path) -> list[Document]:
 
     Returns:
         List of Document objects with `page_content` (the text chunk) and
-        `metadata` containing at minimum {"source": filename}.
+        `metadata`: "source", plus "page", "page_end", "section", "subsection",
+        "kind" and "chunk_index" (see src/rag/structure.py).
 
     Raises:
         FileNotFoundError: If the PDF doesn't exist.
@@ -156,8 +159,11 @@ def load_pdf(pdf_path: str | Path) -> list[Document]:
     logger.info("Extracted %d pages from %s", len(pages), pdf_path.name)
 
     if CHUNK_STRATEGY == "fixed_token":
-        return _split_fixed_token(pages)
+        chunks = _split_fixed_token(pages)
     elif CHUNK_STRATEGY == "semantic":
-        return _split_semantic(pages)
+        chunks = _split_semantic(pages)
     else:
         raise ValueError(f"Unknown CHUNK_STRATEGY: {CHUNK_STRATEGY!r}. Use 'fixed_token' or 'semantic'.")
+
+    # Stamp page / section / kind onto every chunk (see src/rag/structure.py)
+    return annotate_chunks(chunks, pages)
