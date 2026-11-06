@@ -23,6 +23,13 @@ Keep it updated as the project evolves.
 - Specialists return typed `AgentResult`s; the router merges them into a `RouterResult`
 - Guardrails (`src/agents/guardrails.py`): injection check before routing, PII
   scrubbing + low-confidence warning after; `GuardrailViolation` → HTTP 400
+- Golden-question evaluation in `tests/integration/` (lesson 30): run it after any
+  change to retrieval, chunking or prompts.
+- Router rewrites the question per specialist (lesson 24); retrieval tools return
+  evidence artifacts (lesson 25); chunks carry page/section metadata (lesson 26);
+  page headers/footers and the table of contents are kept out of the chunks
+  (lesson 27). **Re-ingest after pulling these changes**: `/ingest` replaces a
+  PDF's chunks, no need to wipe `data/chroma_db`.
 - `langgraph_agent.py` is untouched (Stage 2 reference; the specialists import its tools)
 - Tests: `tests/test_router.py` (offline)
 - Not yet verified against the real OpenAI API: run the curl checks in lesson 20
@@ -146,6 +153,11 @@ The `test_load_pdf_returns_chunks` test patches `CHUNK_STRATEGY = "fixed_token"`
 so it never hits the semantic chunker (which calls the OpenAI embeddings API).
 Rule: unit tests must be fully offline. Integration tests that need a real API
 key belong in a separate `tests/integration/` folder (not yet created).
+`tests/conftest.py` enforces this: an autouse fixture makes the real
+`get_vector_store` raise, so a test that forgets to patch fails loudly. (It was
+added after a test run silently reached the real ChromaDB and OpenAI embeddings
+API, because `main.py`'s `load_dotenv()` puts the key in the environment once any
+test imports `main`.) Shared fakes live in `tests/fakes.py`.
 
 ### 13. Plain `def` routes for blocking work
 FastAPI runs `def` routes in a threadpool; `async def` routes run on the event
@@ -157,6 +169,15 @@ froze every other request. Use `async def` only with an async client end to end
 `get_vector_store()` was rebuilding the embeddings client and Chroma handle on
 every tool call. `@lru_cache(maxsize=1)` builds it once on first call (lazy, so
 imports still work without `OPENAI_API_KEY`).
+**Thread-safety (found live):** `lru_cache` does not stop several threads from each
+building the value on a cold cache, and ChromaDB's client setup is not safe to run
+concurrently. An agent issuing parallel searches in a fresh process crashed with
+`RustBindingsAPI object has no attribute 'bindings'` / `Could not connect to tenant
+default_tenant` (the same race was latent in the coverage+exclusions fan-out on the
+first request after a restart). `get_vector_store()` now serialises construction
+with a lock around the cached builder; `test_embedder_threadsafety.py` hammers it
+from 8 threads and includes a check that the same test DOES see a double build when
+the lock is removed. Lesson: a cache is not a lock.
 
 ### 15. Idempotent ingestion
 Chunk ID = `sha256(f"{source}:{index}")`, plus `delete(where={"source": ...})`
@@ -248,19 +269,19 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
   standalone still returns the id it generated.
 - **Confidence measures grounding, not correctness.** It is derived from tool
   results, never from the LLM's self-rating (uncalibrated): `low` = guard tripped,
-  no tool called, or no tool returned text; `medium` = some returned text, some
-  didn't; `high` = every tool call returned text. "Returned text" is detected by
-  the `[Source: ...]` label every non-empty tool result carries, so it does not
-  depend on the tools' empty-result wording.
-- **`search_exclusions` special case.** The tool falls back to unfiltered chunks
-  when no retrieved chunk has exclusion wording. That is text, but not evidence
-  of an exclusion, so a `search_exclusions` result with none of
-  `_EXCLUSION_KEYWORDS` caps confidence at `medium` (not `low`: text did come
-  back). The check strips `[Source: ...]` labels first so a filename like
-  `exclusions.pdf` can't count, keys on `ToolMessage.name` (set by `ToolNode`),
-  and imports the keyword list from `langgraph_agent.py` so it lives in one place.
-  Still a heuristic: a keyword hit means exclusion wording is present, not that
-  it answers the question.
+  no tool called, or no tool returned text; `medium` = some returned text and some
+  didn't, or a `search_exclusions` result held no exclusion language, or the answer
+  quotes text that wasn't retrieved; `high` = none of those. "Returned text" means
+  the tool's evidence artifact is non-empty (lesson 25).
+- **`search_exclusions` special case.** The tool falls back to the closest chunks
+  when none has exclusion wording. That is text, but not evidence of an exclusion,
+  so such a result caps confidence at `medium` (not `low`: text did come back).
+  Whether a chunk reads as an exclusion is decided in `tools.py`
+  (`has_exclusion_language` + section metadata) and recorded on each Evidence as
+  `exclusion_language`; `assess_confidence` just reads it and keys on
+  `ToolMessage.name` (set by `ToolNode`; `EXCLUSIONS_TOOL_NAME` is pinned to the
+  real tool by a test). Still a heuristic: a hit means exclusion wording is
+  present, not that it answers the question.
 - **Keyword-list fix (Oct 30, 2026):** `_EXCLUSION_KEYWORDS` had a comment claiming
   the stem `"exclud"` catches "exclusion", but `"exclud" in "exclusion"` is False
   (exclu-s-ion), so "Exclusions" headings were missed by the tool's filter and
@@ -269,6 +290,12 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
   ingested chunks, matches went 31 → 32. Lesson: verify a "stem" claim with `in`
   before trusting a comment; `test_exclusion_keywords_match_exclusion_and_exclusions`
   pins it.
+- **"Not otherwise excluded" is not an exclusion (found in a live run).** The
+  burst-pipe coverage grant says "...water or steam not otherwise excluded", which
+  matched the `"exclud"` keyword, so the Exclusions Agent was handed the coverage
+  grant and rated `high`. `has_exclusion_language` now strips "not (otherwise)
+  excluded" before matching (pinned by
+  `test_burst_pipe_coverage_grant_is_not_high_confidence_exclusions`).
 
 ### 23. Guardrails
 `route_and_answer()` runs `check_prompt_injection()` FIRST (before the classifier,
@@ -301,6 +328,228 @@ a 500); its message is written to be shown to the user.
   merge this can sit alongside the per-section cautions from `merge_results`
   (lesson 22): the section note says WHICH part is weak, the warning says the
   whole answer is.
+
+### 24. Per-agent sub-questions (inter-agent communication)
+Live finding: sending a coverage-framed question ("Does my policy cover a burst
+pipe?") unchanged to the Exclusions Agent made it search for coverage text, so
+its "NOT covered" section quoted the coverage grant again and missed seepage.
+The classifier call now also returns `coverage_question` and `exclusions_question`
+(standalone, same subject, no added facts). The coverage intent sends each
+specialist its own; `exclusions` uses the rewrite; `claims` gets the original.
+Missing/blank rewrites fall back to the user's question, so a weak classifier
+output degrades to the old behaviour instead of failing.
+- The rewrite also resolves bare follow-ups: the router remembers the previous
+  STANDALONE question per session (`_session_question`) and passes it with
+  `previous_intent`, so "what about mold?" then "and fungus?" keeps its topic.
+  (In-process, lost on restart, like `_session_intent`.)
+- Side effect to know: a specialist's own history stores the rewritten question,
+  not the user's literal words. `RouterResult.questions` records what each got.
+- Cost: no extra LLM call, only a larger structured output from the same call.
+
+### 25. Evidence artifacts instead of parsing strings
+(`AgentResult.queries` also records the searches the agent chose to run - what
+retrieval ACTUALLY ran on, as opposed to the user's question.)
+`src/agents/tools.py` has the specialists' tools (the Stage 2 tools in
+`langgraph_agent.py` are untouched). They use `response_format=
+"content_and_artifact"`: the text the LLM reads, plus a list of `Evidence`
+records (chunk id, source, page, section, kind, distance, text,
+exclusion_language) that LangChain attaches to the `ToolMessage` (verified to
+survive `ToolNode`). Everything downstream reads the artifact:
+- `AgentResult.evidence`, `.sources`, and `RouterResult.citations`
+- **Quote check:** `find_unverified_quotes` looks for each quoted passage in the
+  retrieved text, ignoring case/spacing/punctuation, and checks `...`/`[brackets]`
+  piece by piece (an invented tail after `...` is only ~16 chars, so the
+  per-piece minimum is deliberately low). A miss caps confidence at `medium`,
+  lists the quote on `AgentResult.unverified_quotes`, and adds a note to the
+  answer. Straight quotes are paired in sequence so prose BETWEEN two quotations
+  isn't mistaken for one.
+- **Redundancy:** if a later specialist's chunks are all a subset of an earlier
+  one's, `merge_results` keeps its text but flags it ("drew only on policy text
+  already used above") and caps its effective confidence at `medium`. Kept, not
+  dropped: the text may still be a valid reading.
+- Evidence carries Chroma's `distance` (squared L2 on unit vectors; LOWER is
+  closer) but it is NOT used as a confidence threshold: a defensible cut-off needs
+  calibrating against live queries. Treat that as the next step.
+- Both tools skip `kind == "toc"` chunks (lesson 27) by over-fetching `TOC_SLACK`
+  extra candidates and filtering afterwards, so a result is never short because a
+  contents chunk was dropped.
+- `search_exclusions` returns up to 6 chunks (was 4) from a pool of 30. What
+  COUNTS as exclusion text is decided by section metadata or keywords; which chunks
+  are RETURNED is decided by a quota (lesson 29).
+- `/ask` also returns `citations` (source, page, page_end, section, subsection) for
+  every retrieved chunk. These are what was RETRIEVED, not necessarily what the
+  answer quoted.
+
+### 26. Page and section metadata (`src/rag/structure.py`)
+Semantic chunking lost page numbers and nothing recorded sections. After either
+chunking strategy, `annotate_chunks` stamps: `page`, `page_end`, `section`,
+`subsection`, `kind` (coverage / exclusions / conditions / definitions / other),
+`has_exclusions`, `chunk_index`.
+- **Do not use `SemanticChunker(add_start_index=True)`:** it sums chunk lengths,
+  but the chunker drops inter-sentence whitespace, so offsets drift. Chunks are
+  located in the page text by matching their first words (whitespace-tolerant).
+- **Locator bug found on the real PDF:** an unbounded search for a chunk's last
+  words matched a repeated boilerplate phrase pages later, the cursor jumped, and
+  half the chunks became unlocatable. The tail search is now confined to a window
+  around where the chunk should end.
+- **Heading rules are policy-specific** (this Allstate-style jacket: "Section
+  I—Your Property", "Losses We Do Not Cover Under Coverage ..."). They are
+  anchored to the whole line / line start so cross-references inside sentences
+  ("...the Section I—Losses We Do Not Cover Under...", "Additional Protection under
+  item 11") aren't taken for headings, wrapped headings are joined, and the table
+  of contents is skipped. Another policy layout needs its own rules; unrecognised
+  headings leave `kind` at the last known value.
+- **`kind` is where a chunk STARTS, `has_exclusions` is whether it overlaps any
+  exclusions region.** One real semantic chunk spans pages 20-23 and starts under
+  a coverage heading while containing the whole Section II exclusions list.
+- Chunks ingested before this exist without the new fields; the tools default them
+  and fall back to keywords alone. **Re-ingest to get the benefit:**
+  `curl -X POST http://127.0.0.1:8000/ingest -H "Content-Type: application/json"
+  -d '{"pdf_path": "data/policies/apc220-ho-policy-jacket.pdf"}'` (idempotent: it
+  replaces that PDF's chunks, so no need to wipe `data/chroma_db`; this makes live
+  embedding calls). Offline checks on the real PDF found all 69 chunks located
+  with correct page and section; retrieval quality on real embeddings is unmeasured.
+
+### 27. Strip page furniture at ingest; keep the contents page out of search
+Two live findings, one fix pass, one re-ingest.
+- **Running headers/footers corrupt chunk text.** Every page of the sample policy
+  ends with "Homeowners Policy / Policy number: / Policy effective date: / Your
+  Allstate agency is / Page N of 26 / Sample Document". A sentence that crosses a
+  page break therefore had that block spliced into its middle: 25 blocks in the
+  stored chunks, 11 mid-sentence. Effects seen: embeddings polluted, and the quote
+  check flagged two ACCURATE quotes as "unverified" (the LLM quoted the sentence
+  correctly; the stored text was the broken one). `loader._strip_boilerplate`
+  removes a line only if, digit-normalised ("Page # of #"), it sits in the first 6
+  or last 10 lines of a page on at least half the pages and has 2+ words (so `a)`
+  and `1.` never qualify, and body text elsewhere on a page is untouched). A page
+  is never stripped to nothing, and documents under 4 pages are left alone. On the
+  real PDF it removed 153 lines and no footer text remains. LIMIT: a repetition
+  heuristic; a body line that genuinely repeats at the edge of most pages would go.
+- **The contents page matches every query.** It names every section, so it ranked
+  for almost anything (a "what about mold?" answer cited page 2-3). Chunks are now
+  `kind="toc"` if they start on a contents page OR their own text has 5+
+  dot-leader runs ("......7"). The second rule matters: the first real chunk can
+  start on the cover page and swallow the contents, so a start-page rule alone
+  misses it (found by running the pipeline on the real PDF). Both tools drop them.
+- Verified offline on the real PDF (fake embeddings): both previously false-flagged
+  quotes now verify, and the cover+contents chunk is marked `toc`. Chunk
+  boundaries will differ after re-ingesting, since the text changed.
+
+### 28. The quote check works: the LLM was putting paraphrases in quotation marks
+After the footer fix, the "N quoted passages could not be matched" notes stopped
+being false alarms and became true positives. Of 7 flagged quotes, every one
+differed from the policy: dropped words ("perils **12, 13, and 14**" omitted), a
+list marker removed, or a sentence that doesn't exist at all (a "quote" about
+sump pumps assembled from several clauses). The meaning was mostly right; the
+quotation marks were not. All three specialist prompts now say: use quotation
+marks ONLY for text copied word for word, use "..." to skip words, and write
+anything reworded without quotation marks (pinned by
+`test_every_specialist_prompt_requires_verbatim_quotes`). **Result (live,
+Nov 2026): 0 unverified quotes across all 5 end-to-end answers** (was 4 and 2 on
+the runs before the rule) - the rule worked. Keep watching `unverified_quotes` in
+the live answer test; it is printed, not asserted.
+Note the order of events: the check first looked broken (footer noise, lesson 27),
+then looked right once the data was clean. Fix the data before tuning the check.
+
+### 29. Exclusion retrieval: a quota, because neither pure ordering works
+`search_exclusions` has been through three rules, each driven by a live run:
+1. Section chunks first: pulled in distant, irrelevant ones ("Satellite dish
+   antennas", distance 0.91) ahead of the page with the $5,000 mold limit (0.61).
+2. Distance only: seven coverage-region chunks that merely contain "we do not
+   cover" (pages 9-10 list perils) crowded out the only chunk that mentions flood.
+3. **Quota (current):** the closest `EXCLUSION_SECTION_QUOTA` (**4**) chunks from
+   genuine exclusions regions are guaranteed a place; the remaining slots (of
+   `EXCLUSION_TOP` = 6) go to the closest of everything else flagged; the result is
+   returned closest-first. The quota was 3 and is **4, tuned from the probe**: for
+   the agent's real query `water damage` the flood chunk was raw rank 8/30 but only
+   exclusions-region rank 4, so 3 missed it by one. `Evidence.in_exclusions_section` records region
+   membership (kind == "exclusions" OR `has_exclusions`), separately from
+   `exclusion_language` (which also counts keyword hits).
+Replaying stored vectors as proxy queries showed the quota keeps both the $5,000
+chunk and the flood chunk (still true at quota 4), but proxies are not real
+queries. The tests derive their expectations from the constants, so retuning means
+changing one number and re-running the golden set (lesson 30). Re-run it after ANY
+change here. `EXCLUSION_TOP` = 6 is still judgment, not tuned.
+
+### 30. Golden-question evaluation (`tests/integration/`)
+Retrieval was being judged by eye, and rules 1 and 2 above each fixed one question
+and broke another. `golden.py` lists questions with the policy wording a good
+retrieval must surface (real snippets, matched ignoring case/spacing/punctuation,
+each required to be inside ONE chunk, since a snippet split across chunks is never
+seen whole by the LLM). `evaluate()` reports the rank of each snippet.
+- **Offline (every run):** `tests/test_golden_data.py` checks the harness and that
+  every snippet exists in a single ingested chunk (skips if nothing is ingested).
+  A bad snippet would fail a live run for the wrong reason.
+- **Live retrieval (cheap: embeddings only, no LLM):**
+  `RUN_LIVE_EVAL=1 pytest tests/integration/test_live_retrieval.py -v -s`
+- **Live end to end (router + GPT-4o, several calls per question):**
+  `RUN_LIVE_EVAL=full pytest tests/integration/test_live_answers.py -v -s`
+  asserts the right agent, confidence != low, and required facts in the answer;
+  it prints (not asserts) the unverified-quote count so the trend is visible.
+- Live tests carry the `live` marker, are skipped unless `RUN_LIVE_EVAL` is set, and
+  are exempt from the conftest guard that forbids the real vector store.
+- **Probe:** when a case FAILS, `python -m tests.integration.probe <case-id>` prints
+  how deep the required wording sits in the raw similarity ranking (default top 30):
+  rank 5-8 suggests returning more chunks; rank 30+/absent means the question and
+  the policy use different words (query rewriting or hybrid keyword search).
+- **First live result (Nov 2026): 12 of 14 retrieval cases pass**, including both
+  motivating misses (flood retrieved, rank #6 of 6 - the last slot, so thin margin;
+  $5,000 mold limit #1). Two fail, both plain top-4 `search_policy` with lay wording
+  against legalese: "How long do I have to sue my insurer?" (policy says "bring an
+  action against us") and "Do I need to report a theft?" (theft COVERAGE chunks win;
+  the wording is in the claims-conditions chunk). All four chunks returned for each
+  had distances of 1.17-1.25, i.e. weak matches. CAVEAT: the eval sends the raw
+  question to a plain search, while the live system has the agent write its own
+  query and routes claims questions to the Claims Agent, so these may not fail end
+  to end; both are also in the end-to-end set (`*-e2e`, agent left unasserted).
+- **Second live result:** the probe put the two failing snippets at raw rank 5/30 and
+  6/30 - close, so raising `POLICY_TOP` (4) would fix them. Decision: **don't.** Both
+  end-to-end cases PASS (routed to the Claims Agent, whose own queries find them), so
+  the retrieval failures are not user-visible, and +50% context on every
+  `search_policy` call would buy a green eval row, not a better answer. Instead
+  `GoldenCase.known_gap` records why; those rows report XFAIL (XPASS if they start
+  passing) so the gap stays visible without hiding real breaks. Revisit if a real
+  question of this kind starts failing end to end.
+- **End-to-end result: 4 of 5 pass.** The failure is `water-exclusions-flood`: the
+  answer lists backups, ground water, mold, freezing and defective systems but NOT
+  flood, even though the retrieval-level case passes (rank #6 of 6, the last slot)
+  and flood is the classic water exclusion. Chunk 51 (the only flood chunk) is 833
+  chars and starts with "Flood", so dilution by other items is NOT the explanation.
+  **Diagnosed (live): NEVER retrieved.** The Exclusions Agent ran ONE search with the
+  query `water damage`; the flood chunk didn't make the six results (the sewer
+  chunk did, at #4). An agent's query can be far terser than the user's question and
+  retrieve very differently, which the whole-question retrieval case could not show.
+  Two responses:
+  1. Prompt (cause I can see): the Exclusions Agent must search SEVERAL times with
+     different wording for a broad topic (one search per distinct cause or kind of
+     loss) and cover EVERY distinct exclusion it retrieved. Unverified until a live
+     rerun.
+  2. Measurement (so the quota is tuned, not guessed): `GoldenCase.query` reproduces
+     the agent's short query (`water-damage-short-query`, currently expected to FAIL
+     - it is the regression to fix, not an accepted gap), and the probe now also
+     prints each snippet's **exclusions-region rank**: the rank among only
+     chunks inside exclusions regions, which is the number `EXCLUSION_SECTION_QUOTA`
+     must reach. Region rank 4-5 -> raise the quota; 10+ -> no sensible quota helps
+     and the fix is multi-search / smaller chunks.
+  Run: `python -m tests.integration.probe water-damage-short-query`
+  **Probe result:** flood raw rank 8/30, exclusions-region rank 4 (sewer: 4/30, region
+  3) -> quota raised 3 -> 4 (lesson 29). The end-to-end rerun then crashed in
+  ChromaDB, not in retrieval: the new multi-search prompt made the agent issue
+  parallel searches in a fresh process and exposed the cache race (lesson 14), now
+  fixed.
+  **Confirmed live after both fixes:** the flood end-to-end case PASSES. The Exclusions
+  Agent now runs five searches (`water damage exclusions`, `flood damage exclusions`,
+  `sewer backup exclusions`, `rainwater damage exclusions`, `groundwater damage
+  exclusions`), flood is retrieved, and the answer states it (0 unverified quotes,
+  confidence high). Retrieval suite: **13 pass, 2 xfail (the accepted gaps), 0 fail**;
+  `water-damage-short-query` passes with flood in the LAST slot of six (#6) and sewer
+  at #5, i.e. the quota is a safety net with a thin margin. The multi-search prompt is
+  the more robust fix, because each query reaches different chunks. Cost: a broad
+  exclusions question now makes ~5 searches (~5x the retrieval tokens, run in parallel;
+  the e2e case took ~10 s).
+- Add a case whenever a live run shows a miss (retrieval-level snippets first).
+- LIMIT: the queries are the questions as written, not what the router or an agent
+  would actually send, and snippets prove retrieval, not answer quality.
 
 ---
 
@@ -428,6 +677,12 @@ uvicorn main:app --reload
 | `src/agents/router.py`      | Intent classifier, fan-out, `merge_results`, session pass-through |
 | `src/agents/guardrails.py`  | Injection check, PII scrubbing (answers + logs), confidence gate |
 | `tests/test_guardrails.py`  | Offline guardrail tests                               |
+| `src/agents/tools.py`       | Specialists' retrieval tools returning evidence artifacts |
+| `src/rag/structure.py`      | Page / section / kind metadata for chunks             |
+| `tests/integration/golden.py` | Golden questions + `evaluate()` scoring; live tests beside it |
+| `tests/test_golden_data.py` | Offline checks of the golden set and harness          |
+| `tests/test_loader_boilerplate.py` | Header/footer stripping tests              |
+| `tests/conftest.py`, `tests/fakes.py` | Offline safety net; shared fakes             |
 | `src/agents/results.py`     | `AgentResult` / `RouterResult` + confidence and source helpers |
 | `src/agents/{coverage,exclusions,claims}_agent.py` | Stage 3 specialists |
 | `tests/test_router.py`      | Offline router and specialist tests                   |
