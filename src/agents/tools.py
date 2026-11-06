@@ -52,6 +52,7 @@ def _to_evidence(doc: Document, distance: float) -> Evidence:
     """Build an Evidence record from a retrieved chunk and its distance."""
     meta = doc.metadata
     page = int(meta.get("page") or 0)
+    in_section = bool(meta.get("kind") == "exclusions" or meta.get("has_exclusions"))
     return Evidence(
         chunk_id=doc.id or hashlib.sha256(doc.page_content.encode()).hexdigest(),
         source=str(meta.get("source", "unknown")),
@@ -62,11 +63,8 @@ def _to_evidence(doc: Document, distance: float) -> Evidence:
         kind=str(meta.get("kind", "")),
         distance=float(distance),
         text=doc.page_content,
-        exclusion_language=bool(
-            meta.get("kind") == "exclusions"
-            or meta.get("has_exclusions")
-            or has_exclusion_language(doc.page_content)
-        ),
+        exclusion_language=in_section or has_exclusion_language(doc.page_content),
+        in_exclusions_section=in_section,
     )
 
 

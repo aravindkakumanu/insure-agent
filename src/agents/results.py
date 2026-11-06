@@ -60,6 +60,7 @@ class Evidence(TypedDict):
     distance: float  # Chroma distance to the query; LOWER means closer
     text: str
     exclusion_language: bool  # chunk is in / contains exclusion wording
+    in_exclusions_section: bool  # chunk starts in / overlaps an exclusions REGION
 
 
 @dataclass(frozen=True)

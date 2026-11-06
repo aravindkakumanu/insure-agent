@@ -134,6 +134,7 @@ def make_evidence(
     kind: str = "coverage",
     distance: float = 0.3,
     exclusion_language: bool = False,
+    in_exclusions_section: bool = False,
 ) -> Evidence:
     return Evidence(
         chunk_id=chunk_id,
@@ -146,6 +147,7 @@ def make_evidence(
         distance=distance,
         text=text,
         exclusion_language=exclusion_language,
+        in_exclusions_section=in_exclusions_section,
     )
 
 

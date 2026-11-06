@@ -22,7 +22,17 @@ def _forbidden():
     raise AssertionError(_MESSAGE)
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "live: needs OpenAI and the ingested ChromaDB; skipped unless RUN_LIVE_EVAL is set "
+        "(tests/integration/)",
+    )
+
+
 @pytest.fixture(autouse=True)
-def no_real_vector_store(monkeypatch: pytest.MonkeyPatch) -> None:
+def no_real_vector_store(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    if request.node.get_closest_marker("live"):
+        return  # live evaluation tests deliberately use the real store
     monkeypatch.setattr("src.agents.tools.get_vector_store", _forbidden)
     monkeypatch.setattr("src.agents.langgraph_agent.get_vector_store", _forbidden)

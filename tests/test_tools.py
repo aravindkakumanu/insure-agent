@@ -187,6 +187,16 @@ def test_a_distant_section_chunk_does_not_displace_closer_matches_at_the_cap(use
     assert len(artifact) == tools.EXCLUSION_TOP
 
 
+def test_section_flag_is_recorded_on_the_evidence(use_store) -> None:
+    use_store(
+        make_doc("Land.", chunk_id="a", kind="exclusions"),
+        make_doc("Straddler.", chunk_id="b", kind="coverage", has_exclusions=True),
+        make_doc("Loss is excluded.", chunk_id="c", kind="coverage"),
+    )
+    flags = {e["chunk_id"]: e["in_exclusions_section"] for e in run_tool(tools.search_exclusions).artifact}
+    assert flags == {"a": True, "b": True, "c": False}
+
+
 def test_chunk_overlapping_an_exclusions_region_counts(use_store) -> None:
     straddler = make_doc("Each person who sustains injury...", chunk_id="s", kind="coverage", has_exclusions=True)
     use_store(straddler)
