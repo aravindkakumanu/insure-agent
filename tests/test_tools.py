@@ -161,30 +161,74 @@ def test_search_policy_asks_for_four_chunks_plus_toc_slack(use_store) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_results_stay_closest_first_even_when_a_farther_chunk_is_in_an_exclusions_section(
-    use_store,
-) -> None:
-    """Regression from a live run: ranking section chunks first pulled in a distant
-    'Satellite dish antennas' chunk ahead of the page holding the $5,000 mold limit."""
-    near_keyword = make_doc("Mold remediation is limited to $5,000 and otherwise excluded.", chunk_id="near", kind="conditions")
-    far_in_section = make_doc("Satellite dish antennas.", chunk_id="far", kind="exclusions")  # no keyword
-    use_store(near_keyword, far_in_section)  # near_keyword is the CLOSER match
+def ids(artifact) -> list[str]:
+    return [e["chunk_id"] for e in artifact]
+
+
+def coverage_chunks_saying_we_do_not_cover(n: int):
+    """Coverage-region chunks that merely contain 'we do not cover' (seven on pages 9-10)."""
+    return [
+        make_doc(f"Peril {i}: we do not cover loss of this kind.", chunk_id=f"cov{i}", kind="coverage")
+        for i in range(n)
+    ]
+
+
+def test_quota_keeps_the_flood_chunk_when_coverage_chunks_crowd_the_top(use_store) -> None:
+    """Live regression: distance-only ordering let seven coverage chunks containing
+    'we do not cover' crowd out the one chunk about flood."""
+    flood = make_doc("1. Flood, including surface water, is not covered.", chunk_id="flood", kind="exclusions")
+    use_store(*coverage_chunks_saying_we_do_not_cover(7), flood)  # flood is the FARTHEST
 
     artifact = run_tool(tools.search_exclusions).artifact
 
-    assert [e["chunk_id"] for e in artifact] == ["near", "far"]
-    assert all(e["exclusion_language"] for e in artifact)  # both still COUNT as exclusion text
-
-
-def test_a_distant_section_chunk_does_not_displace_closer_matches_at_the_cap(use_store) -> None:
-    close = [make_doc(f"Loss {i} is excluded.", chunk_id=f"c{i}") for i in range(tools.EXCLUSION_TOP)]
-    far = make_doc("Land.", chunk_id="far", kind="exclusions")
-    use_store(*close, far)  # the section chunk is the FARTHEST
-
-    artifact = run_tool(tools.search_exclusions).artifact
-
-    assert "far" not in [e["chunk_id"] for e in artifact]
+    assert "flood" in ids(artifact)
     assert len(artifact) == tools.EXCLUSION_TOP
+
+
+def test_quota_is_capped_so_distant_section_chunks_cannot_take_every_slot(use_store) -> None:
+    quota, top = tools.EXCLUSION_SECTION_QUOTA, tools.EXCLUSION_TOP
+    keyword = [make_doc(f"Loss {i} is excluded.", chunk_id=f"k{i}", kind="coverage") for i in range(top)]
+    section = [make_doc(f"Section chunk {i}.", chunk_id=f"s{i}", kind="exclusions") for i in range(quota + 2)]
+    use_store(*keyword, *section)  # all keyword chunks are closer than all section chunks
+
+    artifact = run_tool(tools.search_exclusions).artifact
+
+    expected = [f"k{i}" for i in range(top - quota)] + [f"s{i}" for i in range(quota)]
+    assert ids(artifact) == expected  # `quota` closest section chunks + the closest others, by distance
+    assert sum(e["in_exclusions_section"] for e in artifact) == quota
+
+
+def test_a_closer_keyword_chunk_beats_the_fourth_section_chunk(use_store) -> None:
+    """Live regression: 'Satellite dish antennas' (0.91) displaced the page holding
+    the $5,000 mold limit (0.61)."""
+    quota = tools.EXCLUSION_SECTION_QUOTA
+    near_sections = [make_doc(f"Near section {i}.", chunk_id=f"n{i}", kind="exclusions") for i in range(quota)]
+    mold_limit = make_doc("Mold remediation pays up to $5,000 and is otherwise excluded.", chunk_id="mold", kind="conditions")
+    other_keyword = [make_doc(f"Loss {i} is excluded.", chunk_id=f"k{i}", kind="coverage") for i in range(2)]
+    satellite = make_doc("Satellite dish antennas.", chunk_id="sat", kind="exclusions")
+    use_store(*near_sections, mold_limit, *other_keyword, satellite)  # satellite is the (quota+1)th region chunk
+
+    artifact = ids(run_tool(tools.search_exclusions).artifact)
+
+    assert "mold" in artifact
+    assert "sat" not in artifact
+
+
+def test_with_fewer_section_chunks_than_the_quota_the_rest_fill_by_distance(use_store) -> None:
+    section = make_doc("Only section chunk.", chunk_id="s", kind="exclusions")
+    keyword = [make_doc(f"Loss {i} is excluded.", chunk_id=f"k{i}", kind="coverage") for i in range(8)]
+    use_store(*keyword, section)
+
+    artifact = ids(run_tool(tools.search_exclusions).artifact)
+
+    assert artifact == ["k0", "k1", "k2", "k3", "k4", "s"]  # 1 guaranteed + 5 closest others
+
+
+def test_results_are_returned_closest_first(use_store) -> None:
+    far_section = make_doc("Far section chunk.", chunk_id="far", kind="exclusions")
+    near_keyword = make_doc("Near loss is excluded.", chunk_id="near", kind="coverage")
+    use_store(near_keyword, far_section)
+    assert ids(run_tool(tools.search_exclusions).artifact) == ["near", "far"]
 
 
 def test_section_flag_is_recorded_on_the_evidence(use_store) -> None:
@@ -313,3 +357,20 @@ def test_only_toc_hits_means_no_results(use_store) -> None:
     message = run_tool(tools.search_policy)
     assert message.artifact == []
     assert message.content == "No relevant policy content found for this query."
+
+
+# ---------------------------------------------------------------------------
+# The live flood miss: the flood chunk was exclusions-region rank 4
+# ---------------------------------------------------------------------------
+
+
+def test_quota_reaches_a_chunk_at_exclusions_region_rank_four(use_store) -> None:
+    """Probe result for the agent's query 'water damage': the flood chunk was the 4th
+    closest exclusions-region chunk, and the quota of 3 missed it by one."""
+    regions = [make_doc(f"Region chunk {i}.", chunk_id=f"r{i}", kind="exclusions") for i in range(3)]
+    flood = make_doc("1. Flood, including surface water, waves, tidal water.", chunk_id="flood", kind="exclusions")
+    crowd = coverage_chunks_saying_we_do_not_cover(8)  # farther than every region chunk
+    use_store(*regions, flood, *crowd)
+
+    assert tools.EXCLUSION_SECTION_QUOTA >= 4
+    assert "flood" in ids(run_tool(tools.search_exclusions).artifact)

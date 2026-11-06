@@ -207,6 +207,15 @@ def test_every_specialist_prompt_requires_verbatim_quotes(module) -> None:
     assert "write it without quotation marks" in prompt
 
 
+def test_exclusions_prompt_tells_the_agent_to_search_broadly_and_cover_every_exclusion() -> None:
+    """Live finding: for 'water damage' the agent ran ONE short search and flood never
+    came back."""
+    prompt = " ".join(exclusions_agent.SYSTEM_PROMPT.split())
+    assert "search SEVERAL times with different wording" in prompt
+    assert "one search per distinct cause or kind of loss" in prompt
+    assert "Cover EVERY distinct exclusion" in prompt
+
+
 # ---------------------------------------------------------------------------
 # Router: classification and sub-questions
 # ---------------------------------------------------------------------------

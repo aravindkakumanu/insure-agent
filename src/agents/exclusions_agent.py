@@ -65,7 +65,13 @@ You have one tool:
     covered
 
 How to answer:
-  - Call search_exclusions before answering
+  - Call search_exclusions before answering. For a broad question (a whole topic
+    such as a type of damage, rather than one specific exclusion), search SEVERAL
+    times with different wording - one search per distinct cause or kind of loss
+    you can think of for that topic - because one short search returns only a few
+    passages and misses exclusions worded differently
+  - Cover EVERY distinct exclusion in the passages you retrieved; do not stop at
+    the first few
   - State what is excluded or limited, quote the relevant policy section, then
     explain it in plain English
   - Include conditions or circumstances that remove coverage that would

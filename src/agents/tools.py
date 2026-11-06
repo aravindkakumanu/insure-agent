@@ -12,7 +12,8 @@ copies as the Stage 2 reference), with two differences:
   2. search_exclusions uses the section metadata stamped at ingest
      (src/rag/structure.py) as well as keywords to decide what counts as
      exclusion text, so a chunk inside an exclusions section counts even if its
-     wording is unusual. Results stay ordered by distance.
+     wording is unusual. A small quota guarantees real exclusions-region chunks
+     a place in the results; the rest is by distance.
 
 Chunks ingested BEFORE the metadata existed still work: missing fields default
 to empty and the keyword test alone decides. Re-ingest to get the full benefit.
@@ -36,6 +37,7 @@ POLICY_TOP = 4  # chunks returned by search_policy (and the exclusions fallback)
 TOC_SLACK = 2  # extra candidates fetched so dropping table-of-contents chunks can't shrink the result
 EXCLUSION_POOL = 30  # candidates fetched before filtering for exclusions
 EXCLUSION_TOP = 6  # exclusion chunks returned; exclusions need breadth
+EXCLUSION_SECTION_QUOTA = 4  # of those, at least this many from real exclusions regions
 
 # Affirmative uses of the word: "...loss caused by water not otherwise excluded"
 # is a coverage grant, so it must not make a chunk look like an exclusion.
@@ -140,14 +142,29 @@ def search_exclusions(query: str) -> tuple[str, list[Evidence]]:
     if not evidence:
         return "No exclusion-related content found in the policy.", []
 
-    # The section / keyword test decides what COUNTS as exclusion text; distance
-    # alone decides the ORDER (`evidence` is already closest-first). Ranking
-    # section chunks ahead of closer matches pulled in irrelevant ones ("Satellite
-    # dish antennas", distance 0.91) ahead of the page holding the $5,000 mold
-    # limit (0.61).
     flagged = [e for e in evidence if e["exclusion_language"]]
-    # No exclusion wording anywhere: return the closest chunks anyway so the
-    # answer isn't silently empty. Their exclusion_language is False, which caps
-    # the specialist's confidence at "medium" (see results.assess_confidence).
-    chosen = flagged[:EXCLUSION_TOP] if flagged else evidence[:POLICY_TOP]
+    if flagged:
+        # A QUOTA, not a ranking rule. Both pure orderings failed on live runs:
+        #  - section chunks first pulled in distant, irrelevant ones ("Satellite
+        #    dish antennas", distance 0.91) ahead of the page with the $5,000 mold
+        #    limit (0.61);
+        #  - distance only let coverage chunks that merely contain "we do not
+        #    cover" (seven on pages 9-10) crowd out the one chunk about flood.
+        # So: the closest few chunks from genuine exclusions regions are
+        # guaranteed a place, and the remaining slots go to the closest of the
+        # rest. `flagged` is already closest-first, so slicing keeps that order.
+        # The quota is 4 because the probe put the flood chunk at exclusions-region
+        # rank 4 for the agent's query "water damage"; 3 missed it by one.
+        in_section = [e for e in flagged if e["in_exclusions_section"]]
+        guaranteed = in_section[:EXCLUSION_SECTION_QUOTA]
+        taken = {e["chunk_id"] for e in guaranteed}
+        rest = [e for e in flagged if e["chunk_id"] not in taken]
+        chosen = sorted(
+            guaranteed + rest[: EXCLUSION_TOP - len(guaranteed)], key=lambda e: e["distance"]
+        )
+    else:
+        # No exclusion wording anywhere: return the closest chunks anyway so the
+        # answer isn't silently empty. Their exclusion_language is False, which
+        # caps the specialist's confidence at "medium" (results.assess_confidence).
+        chosen = evidence[:POLICY_TOP]
     return _format(chosen), chosen
