@@ -27,12 +27,13 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from src.agents.langgraph_agent import search_exclusions
+from src.agents.tools import search_exclusions
 from src.agents.results import (
     AgentResult,
     assess_confidence,
     current_turn,
-    extract_sources,
+    extract_evidence,
+    find_unverified_quotes,
 )
 
 logger = logging.getLogger(__name__)
@@ -170,8 +171,9 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
     """
     Answer a question with this specialist.
 
-    Returns an AgentResult. Sources and confidence are computed from THIS
-    turn's tool results only, so earlier questions in the session don't leak in.
+    Returns an AgentResult. Evidence, sources, confidence and the quote check
+    use THIS turn's tool results only, so earlier questions in the session
+    don't leak in.
     """
     if session_id is None:
         session_id = str(uuid.uuid4())
@@ -188,20 +190,28 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
 
     messages = result["messages"]
     turn = current_turn(messages)
-    sources = extract_sources(turn)
-    confidence = assess_confidence(turn, fell_back=result["step_counter"] > MAX_ITERATIONS)
+    answer = messages[-1].content
+    fell_back = result["step_counter"] > MAX_ITERATIONS
+
+    evidence = extract_evidence(turn)
+    unverified = () if fell_back else find_unverified_quotes(answer, evidence)
+    confidence = assess_confidence(turn, fell_back, unverified)
+    sources = sorted({e["source"] for e in evidence})
 
     logger.info(
-        "[%s] answered (session=%s, sources=%s, confidence=%s)",
+        "[%s] answered (session=%s, sources=%s, confidence=%s, unverified_quotes=%d)",
         AGENT_NAME,
         session_id,
         sources,
         confidence,
+        len(unverified),
     )
     return AgentResult(
-        answer=messages[-1].content,
+        answer=answer,
         sources=sources,
         agent_name=AGENT_NAME,
         confidence=confidence,
         session_id=session_id,
+        evidence=tuple(evidence),
+        unverified_quotes=unverified,
     )

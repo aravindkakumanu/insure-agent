@@ -63,12 +63,23 @@ class QuestionRequest(BaseModel):
     )
 
 
+class CitationOut(BaseModel):
+    """Where in the policy a retrieved chunk came from."""
+
+    source: str
+    page: int | None = None
+    page_end: int | None = None
+    section: str = ""
+    subsection: str = ""
+
+
 class QuestionResponse(BaseModel):
     answer: str
     session_id: str   # always returned so the client can reuse it
     sources: list[str]
     agent: str        # which specialist(s) handled it, e.g. "coverage+exclusions"
     confidence: str   # "high" | "medium" | "low": how well grounded in retrieved text
+    citations: list[CitationOut] = []  # page / section of every chunk retrieved
 
 
 class IngestRequest(BaseModel):
@@ -117,6 +128,7 @@ def ask_question(body: QuestionRequest) -> QuestionResponse:
             sources=result.sources,
             agent=result.agent,
             confidence=result.confidence,
+            citations=[CitationOut(**vars(c)) for c in result.citations],
         )
     except GuardrailViolation as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
