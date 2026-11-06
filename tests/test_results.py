@@ -13,6 +13,7 @@ from src.agents.results import (
     citations_for,
     current_turn,
     extract_evidence,
+    extract_queries,
     extract_sources,
     find_unverified_quotes,
     weakest_confidence,
@@ -220,3 +221,27 @@ def test_weakest_confidence() -> None:
     with pytest.raises(ValueError):
         weakest_confidence([])
 
+
+# ---------------------------------------------------------------------------
+# Queries the agent chose
+# ---------------------------------------------------------------------------
+
+
+def test_extract_queries_lists_each_search_with_its_tool() -> None:
+    turn = [
+        Q,
+        AIMessage(content="", tool_calls=[
+            {"name": "search_policy", "args": {"query": "burst pipe coverage"}, "id": "1"},
+            {"name": "search_exclusions", "args": {"query": "water damage exclusions"}, "id": "2"},
+        ]),
+        tool_msg("search_policy", i=1),
+        AIMessage(content="final answer"),
+    ]
+    assert extract_queries(turn) == (
+        "search_policy: burst pipe coverage",
+        "search_exclusions: water damage exclusions",
+    )
+
+
+def test_extract_queries_with_no_tool_calls_is_empty() -> None:
+    assert extract_queries([Q, AIMessage(content="from memory")]) == ()

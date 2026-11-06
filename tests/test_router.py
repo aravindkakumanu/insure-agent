@@ -126,6 +126,7 @@ def test_specialist_returns_evidence_with_page_and_section(use_store, monkeypatc
     assert evidence["subsection"] == "Losses We Cover Under Coverages A and B"
     assert result.unverified_quotes == ()
     assert result.confidence == "high"
+    assert result.queries == ("search_policy: x",)  # what the agent actually searched for
 
 
 def test_sources_and_evidence_only_from_current_turn(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -33,6 +33,7 @@ from src.agents.results import (
     assess_confidence,
     current_turn,
     extract_evidence,
+    extract_queries,
     find_unverified_quotes,
 )
 
@@ -198,14 +199,16 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
     unverified = () if fell_back else find_unverified_quotes(answer, evidence)
     confidence = assess_confidence(turn, fell_back, unverified)
     sources = sorted({e["source"] for e in evidence})
+    queries = extract_queries(turn)
 
     logger.info(
-        "[%s] answered (session=%s, sources=%s, confidence=%s, unverified_quotes=%d)",
+        "[%s] answered (session=%s, sources=%s, confidence=%s, unverified_quotes=%d, queries=%s)",
         AGENT_NAME,
         session_id,
         sources,
         confidence,
         len(unverified),
+        list(queries),
     )
     return AgentResult(
         answer=answer,
@@ -215,4 +218,5 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
         session_id=session_id,
         evidence=tuple(evidence),
         unverified_quotes=unverified,
+        queries=queries,
     )

@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterable, Literal, Sequence, TypedDict
 
-from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 Confidence = Literal["high", "medium", "low"]
 
@@ -84,6 +84,7 @@ class AgentResult:
     session_id: str  # echoed back so a standalone caller learns a generated id
     evidence: tuple[Evidence, ...] = ()  # chunks retrieved this turn, de-duplicated
     unverified_quotes: tuple[str, ...] = ()  # quotes not found in the evidence
+    queries: tuple[str, ...] = ()  # searches the agent ran, e.g. "search_policy: burst pipe"
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,21 @@ def _artifact(message: ToolMessage) -> list[Evidence]:
     """The Evidence list a tool attached to its ToolMessage (empty if none)."""
     artifact = getattr(message, "artifact", None)
     return list(artifact) if isinstance(artifact, list) else []
+
+
+def extract_queries(turn: Iterable[BaseMessage]) -> tuple[str, ...]:
+    """The searches the agent chose to run this turn, as "tool: query" strings.
+
+    The agent writes these itself, so they are what retrieval ACTUALLY ran on -
+    not the user's question - and the first thing to read when an answer is
+    missing something.
+    """
+    return tuple(
+        f"{call['name']}: {call['args'].get('query', '')}"
+        for msg in turn
+        if isinstance(msg, AIMessage)
+        for call in msg.tool_calls
+    )
 
 
 def extract_evidence(turn: Iterable[BaseMessage]) -> list[Evidence]:
