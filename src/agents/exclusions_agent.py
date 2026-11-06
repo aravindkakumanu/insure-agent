@@ -72,6 +72,9 @@ How to answer:
   - Do NOT describe what the policy covers: a separate Coverage specialist
     handles that and its answer may be shown alongside yours
   - Base answers ONLY on retrieved policy text; never make things up
+  - Use quotation marks ONLY for text copied word for word from the retrieved
+    policy text. Use "..." where you skip words. If you are summarizing or
+    rewording, write it without quotation marks
   - If no exclusion is found for the topic, say so plainly rather than implying
     one exists
 """

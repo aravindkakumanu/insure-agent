@@ -76,6 +76,9 @@ How to answer:
     claim, such as late notice, and mention them
   - Quote the relevant policy section, then explain it in plain English
   - Base answers ONLY on retrieved policy text; never make things up
+  - Use quotation marks ONLY for text copied word for word from the retrieved
+    policy text. Use "..." where you skip words. If you are summarizing or
+    rewording, write it without quotation marks
   - If the retrieved text doesn't answer part of the question, say so clearly
 """
 

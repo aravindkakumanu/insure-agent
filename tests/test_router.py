@@ -197,6 +197,15 @@ def test_exclusions_agent_with_real_exclusion_chunk_is_high(use_store, monkeypat
     assert exclusions_agent.answer_question("What is excluded?", "x").confidence == "high"
 
 
+@pytest.mark.parametrize("module", SPECIALISTS, ids=lambda m: m.AGENT_NAME)
+def test_every_specialist_prompt_requires_verbatim_quotes(module) -> None:
+    """Live finding: the LLM put paraphrases in quotation marks (6 of 7 flagged quotes)."""
+    prompt = " ".join(module.SYSTEM_PROMPT.split())
+    assert "Use quotation marks ONLY for text copied word for word" in prompt
+    assert 'Use "..." where you skip words' in prompt
+    assert "write it without quotation marks" in prompt
+
+
 # ---------------------------------------------------------------------------
 # Router: classification and sub-questions
 # ---------------------------------------------------------------------------

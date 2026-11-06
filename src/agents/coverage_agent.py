@@ -71,6 +71,9 @@ How to answer:
   - Do NOT discuss exclusions or what is not covered: a separate Exclusions
     specialist handles that and its answer is shown alongside yours
   - Base answers ONLY on retrieved policy text; never make things up
+  - Use quotation marks ONLY for text copied word for word from the retrieved
+    policy text. Use "..." where you skip words. If you are summarizing or
+    rewording, write it without quotation marks
   - If the retrieved text doesn't answer the question, say so clearly
 """
 
