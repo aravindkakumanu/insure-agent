@@ -159,15 +159,30 @@ def test_search_policy_asks_for_four_chunks(use_store) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_exclusions_section_chunks_come_before_keyword_only_hits(use_store) -> None:
-    keyword_only = make_doc("Freezing losses are excluded.", chunk_id="kw", kind="coverage")
-    in_section = make_doc("Land.", chunk_id="sec", kind="exclusions")  # no keyword at all
-    use_store(keyword_only, in_section)  # keyword_only is the CLOSER match
+def test_results_stay_closest_first_even_when_a_farther_chunk_is_in_an_exclusions_section(
+    use_store,
+) -> None:
+    """Regression from a live run: ranking section chunks first pulled in a distant
+    'Satellite dish antennas' chunk ahead of the page holding the $5,000 mold limit."""
+    near_keyword = make_doc("Mold remediation is limited to $5,000 and otherwise excluded.", chunk_id="near", kind="conditions")
+    far_in_section = make_doc("Satellite dish antennas.", chunk_id="far", kind="exclusions")  # no keyword
+    use_store(near_keyword, far_in_section)  # near_keyword is the CLOSER match
 
     artifact = run_tool(tools.search_exclusions).artifact
 
-    assert [e["chunk_id"] for e in artifact] == ["sec", "kw"]
-    assert all(e["exclusion_language"] for e in artifact)
+    assert [e["chunk_id"] for e in artifact] == ["near", "far"]
+    assert all(e["exclusion_language"] for e in artifact)  # both still COUNT as exclusion text
+
+
+def test_a_distant_section_chunk_does_not_displace_closer_matches_at_the_cap(use_store) -> None:
+    close = [make_doc(f"Loss {i} is excluded.", chunk_id=f"c{i}") for i in range(tools.EXCLUSION_TOP)]
+    far = make_doc("Land.", chunk_id="far", kind="exclusions")
+    use_store(*close, far)  # the section chunk is the FARTHEST
+
+    artifact = run_tool(tools.search_exclusions).artifact
+
+    assert "far" not in [e["chunk_id"] for e in artifact]
+    assert len(artifact) == tools.EXCLUSION_TOP
 
 
 def test_chunk_overlapping_an_exclusions_region_counts(use_store) -> None:

@@ -10,8 +10,9 @@ copies as the Stage 2 reference), with two differences:
      to the ToolMessage. Sources, citations, confidence and quote checking read
      the artifact instead of regex-parsing the text.
   2. search_exclusions uses the section metadata stamped at ingest
-     (src/rag/structure.py) as well as keywords, so a chunk that sits inside an
-     exclusions section counts even if its wording is unusual.
+     (src/rag/structure.py) as well as keywords to decide what counts as
+     exclusion text, so a chunk inside an exclusions section counts even if its
+     wording is unusual. Results stay ordered by distance.
 
 Chunks ingested BEFORE the metadata existed still work: missing fields default
 to empty and the keyword test alone decides. Re-ingest to get the full benefit.
@@ -129,10 +130,12 @@ def search_exclusions(query: str) -> tuple[str, list[Evidence]]:
     if not evidence:
         return "No exclusion-related content found in the policy.", []
 
+    # The section / keyword test decides what COUNTS as exclusion text; distance
+    # alone decides the ORDER (`evidence` is already closest-first). Ranking
+    # section chunks ahead of closer matches pulled in irrelevant ones ("Satellite
+    # dish antennas", distance 0.91) ahead of the page holding the $5,000 mold
+    # limit (0.61).
     flagged = [e for e in evidence if e["exclusion_language"]]
-    # Chunks inside an exclusions section first, then keyword-only hits; closest
-    # first within each group (sort is stable and `evidence` is already by distance).
-    flagged.sort(key=lambda e: e["kind"] != "exclusions")
     # No exclusion wording anywhere: return the closest chunks anyway so the
     # answer isn't silently empty. Their exclusion_language is False, which caps
     # the specialist's confidence at "medium" (see results.assess_confidence).
