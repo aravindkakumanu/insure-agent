@@ -18,6 +18,7 @@ When you go to production you can swap it for Pinecone, Weaviate, etc.
 
 import hashlib
 import logging
+import threading
 from functools import lru_cache
 
 from langchain_chroma import Chroma
@@ -33,13 +34,37 @@ CHROMA_PERSIST_DIR = "data/chroma_db"   # where ChromaDB saves its files
 COLLECTION_NAME = "insurance_policies"  # logical name for this set of documents
 
 
+# lru_cache does NOT stop several threads from each running the function on a cold
+# cache. The first call can come from many threads at once (an agent issuing
+# parallel searches; the coverage and exclusions agents running side by side), and
+# ChromaDB's client setup is not safe to run concurrently: a live run crashed with
+# "RustBindingsAPI object has no attribute 'bindings'" / "Could not connect to
+# tenant default_tenant". The lock serialises construction; once built, taking it
+# costs microseconds and never covers the search itself.
+_build_lock = threading.Lock()
+
+
 @lru_cache(maxsize=1)
+def _build_vector_store() -> Chroma:
+    """Construct the store. Call through get_vector_store(), never directly."""
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small",  # cheap, fast, good quality
+        # OpenAI API key is read from os.environ["OPENAI_API_KEY"] automatically
+    )
+    return Chroma(
+        collection_name=COLLECTION_NAME,
+        embedding_function=embeddings,
+        persist_directory=CHROMA_PERSIST_DIR,
+    )
+
+
 def get_vector_store() -> Chroma:
     """
     Load (or create) the ChromaDB vector store backed by OpenAI embeddings.
 
-    Cached: the embeddings client and Chroma handle are built on the first
-    call (lazy, so importing this module needs no OPENAI_API_KEY) and reused.
+    Cached and thread-safe: the embeddings client and Chroma handle are built once,
+    on the first call (lazy, so importing this module needs no OPENAI_API_KEY), and
+    reused. Concurrent first calls wait for the one build instead of racing.
 
     Returns:
         A LangChain Chroma object you can call .add_documents() or
@@ -48,16 +73,11 @@ def get_vector_store() -> Chroma:
     Note:
         OPENAI_API_KEY must be set in your environment (via .env + python-dotenv).
     """
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",  # cheap, fast, good quality
-        # OpenAI API key is read from os.environ["OPENAI_API_KEY"] automatically
-    )
-    vector_store = Chroma(
-        collection_name=COLLECTION_NAME,
-        embedding_function=embeddings,
-        persist_directory=CHROMA_PERSIST_DIR,
-    )
-    return vector_store
+    with _build_lock:
+        return _build_vector_store()
+
+
+get_vector_store.cache_clear = _build_vector_store.cache_clear  # type: ignore[attr-defined]
 
 
 def _chunk_id(source: str, index: int) -> str:
