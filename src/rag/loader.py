@@ -20,6 +20,9 @@ embedding call and in the LLM's context window.
 """
 
 import logging
+import math
+import re
+from collections import Counter
 from pathlib import Path
 
 import pymupdf as fitz  # PyMuPDF — newer versions prefer `import pymupdf`
@@ -41,6 +44,80 @@ CHUNK_OVERLAP = 0       # no overlap — intentional for the first experiment
 ENCODING_MODEL = "cl100k_base"  # tiktoken encoding used by GPT-4o & embeddings
 
 
+# ---------------------------------------------------------------------------
+# Header / footer stripping
+# ---------------------------------------------------------------------------
+# Every page of the sample policy ends with a block ("Homeowners Policy / Policy
+# number: / Policy effective date: / Your Allstate agency is / Page 7 of 26 /
+# Sample Document"). When a sentence runs across a page break, that block lands
+# in the MIDDLE of the sentence in the chunk text: it pollutes embeddings and
+# makes accurate quotes fail verification. 25 such blocks were found in the
+# stored chunks, 11 of them mid-sentence.
+HEADER_LINES = 6            # lines at the top of a page that may be a header
+FOOTER_LINES = 10           # lines at the bottom of a page that may be a footer
+BOILERPLATE_MIN_PAGES = 4   # too few pages to tell a footer from content
+BOILERPLATE_PAGE_FRACTION = 0.5  # a line must repeat on at least this share of pages
+
+
+def _line_key(line: str) -> str:
+    """Normalise a line so "Page 7 of 26" and "Page 8 of 26" compare equal."""
+    return re.sub(r"\d+", "#", line.strip())
+
+
+def _is_substantive(key: str) -> bool:
+    """At least two words, so numbering like "a)" or "1." is never boilerplate."""
+    return len(re.findall(r"[A-Za-z]{2,}", key)) >= 2
+
+
+def _strip_boilerplate(pages: list[Document]) -> list[Document]:
+    """
+    Remove running headers and footers from the pages.
+
+    A line is boilerplate if, after digits are normalised, it sits within the
+    first HEADER_LINES or last FOOTER_LINES lines of a page on at least half of
+    all pages, and has two or more words. Only those edge lines are removed:
+    the same words in the body of a page are left alone. A page is never stripped
+    down to nothing, and documents with fewer than BOILERPLATE_MIN_PAGES pages are
+    returned untouched.
+
+    LIMIT: this is a repetition heuristic. A body line that genuinely repeats at
+    the edge of most pages (differing at most in digits) would be removed.
+    """
+    if len(pages) < BOILERPLATE_MIN_PAGES:
+        return pages
+
+    page_lines = [p.page_content.splitlines(keepends=True) for p in pages]
+
+    def edges(lines: list[str]) -> list[int]:
+        n = len(lines)
+        return sorted(set(range(min(HEADER_LINES, n))) | set(range(max(0, n - FOOTER_LINES), n)))
+
+    counts: Counter[str] = Counter()
+    for lines in page_lines:
+        counts.update({_line_key(lines[i]) for i in edges(lines)})  # once per page
+
+    threshold = max(2, math.ceil(BOILERPLATE_PAGE_FRACTION * len(pages)))
+    boilerplate = {k for k, n in counts.items() if n >= threshold and _is_substantive(k)}
+    if not boilerplate:
+        return pages
+
+    stripped: list[Document] = []
+    removed = 0
+    for page, lines in zip(pages, page_lines):
+        drop = {i for i in edges(lines) if _line_key(lines[i]) in boilerplate}
+        if len(drop) >= sum(bool(line.strip()) for line in lines):
+            stripped.append(page)  # never strip a page down to nothing
+            continue
+        removed += len(drop)
+        text = "".join(line for i, line in enumerate(lines) if i not in drop)
+        stripped.append(Document(page_content=text, metadata=page.metadata))
+    logger.info(
+        "Stripped %d header/footer lines (%d distinct) from %d pages",
+        removed, len(boilerplate), len(pages),
+    )
+    return stripped
+
+
 def _extract_pages(pdf_path: Path) -> list[Document]:
     """Extract raw text from every page of a PDF using PyMuPDF."""
     raw_pages: list[Document] = []
@@ -56,6 +133,9 @@ def _extract_pages(pdf_path: Path) -> list[Document]:
                 )
     if not raw_pages:
         raise ValueError(f"No extractable text in {pdf_path.name}. Is it a scanned PDF?")
+    raw_pages = [p for p in _strip_boilerplate(raw_pages) if p.page_content.strip()]
+    if not raw_pages:
+        raise ValueError(f"No text left in {pdf_path.name} after removing headers and footers.")
     return raw_pages
 
 
