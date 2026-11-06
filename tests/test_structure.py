@@ -13,7 +13,14 @@ import pytest
 from langchain_core.documents import Document
 
 from src.rag.loader import load_pdf
-from src.rag.structure import annotate_chunks, build_regions, find_headings, locate_chunks, _join_pages
+from src.rag.structure import (
+    _join_pages,
+    annotate_chunks,
+    build_regions,
+    find_headings,
+    is_toc_page,
+    locate_chunks,
+)
 
 TOC = """Table Of Contents
 Section I—Your Property.......................7
@@ -253,3 +260,50 @@ def test_load_pdf_stamps_metadata_on_every_chunk() -> None:
     assert chunks[1].metadata["kind"] == "exclusions"
     assert all(c.metadata["source"] == "fake.pdf" for c in chunks)
 
+
+# ---------------------------------------------------------------------------
+# Table of contents
+# ---------------------------------------------------------------------------
+
+
+def test_toc_page_is_recognised() -> None:
+    assert is_toc_page(make_pages(TOC)[0])
+    assert not is_toc_page(make_pages(PAGE_EXCLUSIONS)[0])
+
+
+def test_chunk_starting_on_the_toc_page_is_kind_toc_and_not_exclusions() -> None:
+    toc_chunk = chunk("Table Of Contents Section I—Your Property.......7 Property We Do Not Cover Under Coverage A.....7")
+    real = chunk("1. Flood. We do not cover loss caused by flood or surface water.")
+
+    annotate_chunks([toc_chunk, real], PAGES)
+
+    assert toc_chunk.metadata["kind"] == "toc"
+    assert toc_chunk.metadata["has_exclusions"] is False
+    assert real.metadata["kind"] == "exclusions"  # real content is unaffected
+
+
+BIG_TOC = TOC + "".join(f"Topic number {i} of the policy.........{i + 20}\n" for i in range(8))
+
+
+def test_chunk_that_swallows_the_toc_without_starting_on_it_is_still_toc() -> None:
+    """The real first chunk can start on the cover page and run through the contents."""
+    cover_and_contents = chunk(
+        "APC220 Homeowners Policy cover page text. " + " ".join(BIG_TOC.split())
+    )
+    pages = make_pages("APC220 Homeowners Policy cover page text.", BIG_TOC, PAGE_COVERAGE)
+
+    annotate_chunks([cover_and_contents], pages)
+
+    assert cover_and_contents.metadata["page"] == 1  # it does NOT start on the contents page
+    assert cover_and_contents.metadata["kind"] == "toc"
+
+
+def test_ordinary_chunk_with_a_few_dots_is_not_toc() -> None:
+    body = "Wait... see section 3.... for the deductible.... and limits...."
+    pages = make_pages(BIG_TOC, PAGE_COVERAGE, body)  # contents page first, body later
+    normal = chunk(body)
+
+    annotate_chunks([normal], pages)
+
+    assert normal.metadata["page"] == 3
+    assert normal.metadata["kind"] != "toc"

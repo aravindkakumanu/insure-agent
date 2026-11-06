@@ -33,6 +33,7 @@ from src.rag.embedder import get_vector_store
 logger = logging.getLogger(__name__)
 
 POLICY_TOP = 4  # chunks returned by search_policy (and the exclusions fallback)
+TOC_SLACK = 2  # extra candidates fetched so dropping table-of-contents chunks can't shrink the result
 EXCLUSION_POOL = 30  # candidates fetched before filtering for exclusions
 EXCLUSION_TOP = 6  # exclusion chunks returned; exclusions need breadth
 
@@ -69,6 +70,19 @@ def _to_evidence(doc: Document, distance: float) -> Evidence:
     )
 
 
+def _search(query: str, k: int) -> list[Evidence]:
+    """
+    Closest-first Evidence for a query, without table-of-contents chunks.
+
+    A contents page names every section, so it matches almost any query and
+    carries no policy terms. The filter is applied after the search (not as a
+    Chroma `where`) so chunks ingested before the `kind` field existed still work.
+    """
+    hits = get_vector_store().similarity_search_with_score(query, k=k + TOC_SLACK)
+    evidence = [_to_evidence(doc, distance) for doc, distance in hits]
+    return [e for e in evidence if e["kind"] != "toc"][:k]
+
+
 def _label(e: Evidence) -> str:
     """Human-readable citation label the LLM can quote, e.g. [Source: x.pdf, page 13, ...]."""
     parts = [e["source"]]
@@ -101,8 +115,7 @@ def search_policy(query: str) -> tuple[str, list[Evidence]]:
     Returns:
         The most semantically similar policy excerpts, with source labels.
     """
-    hits = get_vector_store().similarity_search_with_score(query, k=POLICY_TOP)
-    evidence = [_to_evidence(doc, distance) for doc, distance in hits]
+    evidence = _search(query, POLICY_TOP)
     if not evidence:
         return "No relevant policy content found for this query.", []
     return _format(evidence), evidence
@@ -125,8 +138,7 @@ def search_exclusions(query: str) -> tuple[str, list[Evidence]]:
     """
     # Wide pool: exclusion chunks rarely rank highest for an affirmative query,
     # because negation language shifts their embeddings.
-    hits = get_vector_store().similarity_search_with_score(query, k=EXCLUSION_POOL)
-    evidence = [_to_evidence(doc, distance) for doc, distance in hits]
+    evidence = _search(query, EXCLUSION_POOL)
     if not evidence:
         return "No exclusion-related content found in the policy.", []
 

@@ -9,7 +9,10 @@ came from and stamp that onto its metadata:
     section      - top-level section, e.g. "Section I—Your Property"
     subsection   - e.g. "Losses We Do Not Cover Under Coverage A, ..."
     kind         - "coverage" | "exclusions" | "conditions" | "definitions" | "other"
-                   (the heading in effect where the chunk STARTS)
+                   | "toc" (the heading in effect where the chunk STARTS; "toc" when
+                   it starts on a table-of-contents page OR its own text is full
+                   of dot-leader runs - the retrieval tools skip those, since a
+                   contents page names every section and would match any query)
     has_exclusions - True if ANY part of the chunk lies in an exclusions region
     chunk_index  - position of the chunk in the document
 
@@ -81,6 +84,17 @@ _MAX_CONTINUATION_CHARS = 45
 _TOC_LINE_RE = re.compile(r"\.{4,}\s*\d+\s*$")
 _TOC_PAGE_MIN_LINES = 3
 
+# A chunk can swallow a contents page without STARTING on it (e.g. a chunk that
+# begins on the cover). Whatever the boundary, its text is full of "......7" runs.
+_LEADER_RUN_RE = re.compile(r"\.{4,}\s*\d+")
+_TOC_CHUNK_MIN_LEADERS = 5
+
+
+def is_toc_page(page: Document) -> bool:
+    """A table-of-contents page has several lines ending in dot leaders + a number."""
+    lines = page.page_content.splitlines()
+    return sum(bool(_TOC_LINE_RE.search(line.strip())) for line in lines) >= _TOC_PAGE_MIN_LINES
+
 
 @dataclass(frozen=True)
 class Region:
@@ -136,9 +150,9 @@ def find_headings(pages: list[Document]) -> list[Heading]:
     _, starts, _ = _join_pages(pages)
     headings: list[Heading] = []
     for page, page_start in zip(pages, starts):
-        raw_lines = page.page_content.splitlines(keepends=True)
-        if sum(bool(_TOC_LINE_RE.search(line.strip())) for line in raw_lines) >= _TOC_PAGE_MIN_LINES:
+        if is_toc_page(page):
             continue  # a table-of-contents page lists headings without being them
+        raw_lines = page.page_content.splitlines(keepends=True)
         offset = page_start
         for i, raw in enumerate(raw_lines):
             line = raw.strip()
@@ -259,6 +273,7 @@ def annotate_chunks(chunks: list[Document], pages: list[Document]) -> list[Docum
     headings = find_headings(pages)
     regions = build_regions(headings, len(full_text))
     region_starts = [r.start for r in regions]
+    toc_pages = {n for n, page in zip(page_numbers, pages) if is_toc_page(page)}
 
     def page_at(offset: int) -> int:
         i = max(0, bisect.bisect_right(page_starts, offset) - 1)
@@ -266,14 +281,19 @@ def annotate_chunks(chunks: list[Document], pages: list[Document]) -> list[Docum
 
     for index, (chunk, (start, end)) in enumerate(zip(chunks, locate_chunks(chunks, full_text))):
         here = regions[max(0, bisect.bisect_right(region_starts, start) - 1)]
+        first_page = page_at(start)
+        is_toc = (
+            first_page in toc_pages
+            or len(_LEADER_RUN_RE.findall(chunk.page_content)) >= _TOC_CHUNK_MIN_LEADERS
+        )
         chunk.metadata.update(
             {
-                "page": page_at(start),
+                "page": first_page,
                 "page_end": page_at(max(start, end - 1)),
                 "section": here.section,
                 "subsection": here.subsection,
-                "kind": here.kind,
-                "has_exclusions": any(
+                "kind": "toc" if is_toc else here.kind,
+                "has_exclusions": not is_toc and any(
                     r.kind == "exclusions" and r.start < end and r.end > start for r in regions
                 ),
                 "chunk_index": index,

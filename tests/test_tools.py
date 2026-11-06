@@ -148,10 +148,12 @@ def test_search_policy_empty(use_store) -> None:
     assert message.artifact == []
 
 
-def test_search_policy_asks_for_four_chunks(use_store) -> None:
+def test_search_policy_asks_for_four_chunks_plus_toc_slack(use_store) -> None:
     store = use_store(make_doc("a"))
     run_tool(tools.search_policy, "burst pipe")
-    store.similarity_search_with_score.assert_called_once_with("burst pipe", k=tools.POLICY_TOP)
+    store.similarity_search_with_score.assert_called_once_with(
+        "burst pipe", k=tools.POLICY_TOP + tools.TOC_SLACK
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +228,9 @@ def test_exclusions_return_at_most_exclusion_top(use_store) -> None:
 def test_exclusions_search_uses_a_wide_pool(use_store) -> None:
     store = use_store(make_doc("excluded"))
     run_tool(tools.search_exclusions, "flood")
-    store.similarity_search_with_score.assert_called_once_with("flood", k=tools.EXCLUSION_POOL)
+    store.similarity_search_with_score.assert_called_once_with(
+        "flood", k=tools.EXCLUSION_POOL + tools.TOC_SLACK
+    )
 
 
 def test_exclusions_empty(use_store) -> None:
@@ -267,3 +271,35 @@ def test_tool_names_match_the_stage_two_tools() -> None:
     assert tools.search_policy.name == stage2.search_policy.name
     assert tools.search_exclusions.name == stage2.search_exclusions.name
     assert tools.search_policy is not stage2.search_policy  # Stage 2 file left alone
+
+
+# ---------------------------------------------------------------------------
+# Table-of-contents chunks are skipped
+# ---------------------------------------------------------------------------
+
+
+def test_search_policy_drops_toc_chunks_and_still_returns_four(use_store) -> None:
+    toc = make_doc("Losses We Do Not Cover.....13 Exclusions.....15", chunk_id="toc", kind="toc")
+    real = [make_doc(f"Real policy text {i}.", chunk_id=f"r{i}") for i in range(5)]
+    use_store(toc, *real)  # the contents chunk is the CLOSEST match
+
+    artifact = run_tool(tools.search_policy).artifact
+
+    assert [e["chunk_id"] for e in artifact] == ["r0", "r1", "r2", "r3"]  # full POLICY_TOP, no toc
+
+
+def test_search_exclusions_drops_toc_chunks(use_store) -> None:
+    toc = make_doc("Section I Exclusions.....13", chunk_id="toc", kind="toc", has_exclusions=True)
+    real = make_doc("Flood is excluded.", chunk_id="flood", kind="exclusions")
+    use_store(toc, real)
+
+    artifact = run_tool(tools.search_exclusions).artifact
+
+    assert [e["chunk_id"] for e in artifact] == ["flood"]
+
+
+def test_only_toc_hits_means_no_results(use_store) -> None:
+    use_store(make_doc("Contents.....1", chunk_id="toc", kind="toc"))
+    message = run_tool(tools.search_policy)
+    assert message.artifact == []
+    assert message.content == "No relevant policy content found for this query."
