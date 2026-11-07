@@ -437,8 +437,8 @@ Two live findings, one fix pass, one re-ingest.
 
 ### 28. The quote check works: the LLM was putting paraphrases in quotation marks
 After the footer fix, the "N quoted passages could not be matched" notes stopped
-being false alarms and became true positives. Of 7 flagged quotes, every one
-differed from the policy: dropped words ("perils **12, 13, and 14**" omitted), a
+being false alarms and became true positives. Of the 6 quotes the check flagged
+(4 on one answer, 2 on another), every one differed from the policy: dropped words ("perils **12, 13, and 14**" omitted), a
 list marker removed, or a sentence that doesn't exist at all (a "quote" about
 sump pumps assembled from several clauses). The meaning was mostly right; the
 quotation marks were not. All three specialist prompts now say: use quotation
@@ -514,7 +514,11 @@ seen whole by the LLM). `evaluate()` reports the rank of each snippet.
   answer lists backups, ground water, mold, freezing and defective systems but NOT
   flood, even though the retrieval-level case passes (rank #6 of 6, the last slot)
   and flood is the classic water exclusion. Chunk 51 (the only flood chunk) is 833
-  chars and starts with "Flood", so dilution by other items is NOT the explanation.
+  chars, but it OPENS with soil-conditions text and the flood item sits in its last
+  fifth (character ~653 of 817), so dilution by other content may well be part of why
+  it ranks poorly for "water damage" (raw rank 8/30). An earlier version of this note
+  said the opposite after checking only the chunk's size and the count of numbered
+  items, never where flood sits in the text - that was wrong.
   **Diagnosed (live): NEVER retrieved.** The Exclusions Agent ran ONE search with the
   query `water damage`; the flood chunk didn't make the six results (the sewer
   chunk did, at #4). An agent's query can be far terser than the user's question and
