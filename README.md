@@ -10,22 +10,36 @@ sample document is a 26-page homeowners policy jacket in `data/policies/`.
 
 ## How it works
 
+```mermaid
+flowchart LR
+    subgraph ingest["Ingest (once per PDF)"]
+        direction LR
+        pdf["PDF"] --> extract["Extract text<br/>(PyMuPDF)"]
+        extract --> strip["Strip headers<br/>and footers"]
+        strip --> chunk["Semantic chunks<br/>+ page/section metadata"]
+        chunk --> embed["OpenAI embeddings"]
+        embed --> db[("ChromaDB")]
+    end
 ```
-PDF ──► extract ──► strip headers/footers ──► semantic chunks ──► page/section
-        (PyMuPDF)                                                 metadata
-                                                                      │
-                                              OpenAI embeddings ──► ChromaDB
 
-question ──► injection check ──► router (one gpt-4o-mini call)
-                                    │  classifies intent and rewrites the
-                                    │  question once per specialist
-                 ┌──────────────────┼──────────────────┐
-              coverage           exclusions          claims
-        Coverage + Exclusions   Exclusions agent   Claims agent
-        agents, in parallel
-                 └──────────────────┬──────────────────┘
-                     deterministic merge ──► quote check ──► confidence
-                                    ──► PII scrubbing ──► answer + citations
+```mermaid
+flowchart TD
+    q["Question"] --> inj{"Injection<br/>check"}
+    inj -- "looks like an attack" --> rej["HTTP 400"]
+    inj -- ok --> router["Router: one gpt-4o-mini call<br/>classifies intent, rewrites the<br/>question for each specialist"]
+    router -- coverage --> cov["Coverage agent"]
+    router -- coverage --> exc["Exclusions agent"]
+    router -- exclusions --> exc
+    router -- claims --> clm["Claims agent"]
+    cov --> merge["Deterministic merge"]
+    exc --> merge
+    clm --> merge
+    merge --> quotes["Quote check<br/>+ confidence"]
+    quotes --> pii["PII scrubbing"]
+    pii --> out["Answer + citations"]
+    db[("ChromaDB")] -.-> cov
+    db -.-> exc
+    db -.-> clm
 ```
 
 A few choices worth knowing about:
