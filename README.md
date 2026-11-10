@@ -116,9 +116,13 @@ RUN_LIVE_EVAL=full pytest tests/integration/test_live_answers.py  -v -s    # rou
 python -m tests.integration.probe <case-id>   # why did a case miss?
 ```
 
-Run it after any change to retrieval, chunking or prompts. At last run, 13 of
-15 retrieval cases passed and 2 are recorded as known gaps that do not fail
-end to end.
+Run it after any change to retrieval, chunking or prompts; the run prints the
+current result, so trust that over any number written down here. Cases that
+miss on purpose are marked `known_gap` in `tests/integration/golden.py`, each
+with the reason, and report as XFAIL. Two lay-wording questions ("how long do I
+have to sue?", "do I need to report a theft?") currently do; both still pass end
+to end. The history of what was measured and decided is in
+[CLAUDE.md](CLAUDE.md), lesson 30.
 
 ## Project layout
 
