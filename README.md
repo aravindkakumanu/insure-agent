@@ -8,7 +8,9 @@ say what is **not** covered as well as what is.
 
 Built with FastAPI, LangGraph/LangChain, ChromaDB and OpenAI (GPT-4o for
 answers, GPT-4o-mini for routing, `text-embedding-3-small` for embeddings). The
-sample document is a 26-page homeowners policy jacket in `data/policies/`.
+sample document is a 26-page homeowners policy jacket (Allstate form APC220, a
+specimen published by state insurance regulators). It is **not included in this
+repo**: policy PDFs are gitignored, so download it yourself (see Quickstart).
 
 ## How it works
 
@@ -71,8 +73,23 @@ cp .env.example .env          # then set OPENAI_API_KEY
 uvicorn main:app --reload
 ```
 
-Ingest the sample policy once. This makes live embedding calls and is safe to
-repeat: it replaces that PDF's chunks instead of duplicating them.
+Get the sample policy. It is Allstate's document, so it is not committed here;
+the Maine Bureau of Insurance hosts a specimen copy. Save it as
+`data/policies/apc220-ho-policy-jacket.pdf`:
+
+```bash
+mkdir -p data/policies
+curl -L -o data/policies/apc220-ho-policy-jacket.pdf \
+  https://www.maine.gov/pfr/insurance/sites/maine.gov.pfr.insurance/files/inline-files/apc220-ho-policy-jacket.pdf
+```
+
+The server can refuse `curl` (it answered 403 in testing); if so, download the file
+in a browser and move it there. The golden questions and the heading rules were
+tuned on this exact document, so a different copy or version of the form may behave
+differently.
+
+Then ingest it once. This makes live embedding calls and is safe to repeat: it
+replaces that PDF's chunks instead of duplicating them.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ingest \
@@ -126,7 +143,8 @@ pytest
 This is what CI runs on every push and pull request.
 
 A golden-question evaluation checks retrieval and answers against the real
-policy. It needs the key and an ingested policy, so it is opt-in:
+policy. It needs the key and the ingested sample policy, so it is opt-in and runs locally
+(CI runs only the offline suite, because the PDF is not in the repo):
 
 ```bash
 RUN_LIVE_EVAL=1    pytest tests/integration/test_live_retrieval.py -v -s   # embeddings only
