@@ -138,6 +138,16 @@ have to sue?", "do I need to report a theft?") currently do; both still pass end
 to end. The history of what was measured and decided is in
 [CLAUDE.md](CLAUDE.md), lesson 30.
 
+## Tracing (optional)
+
+Off by default. To trace every question end to end in
+[LangSmith](https://smith.langchain.com), set `LANGSMITH_TRACING=true` and
+`LANGSMITH_API_KEY` in `.env` (see `.env.example`) and restart the server. Each
+`/ask` becomes one trace: the router's decision, which agents ran, every tool call
+with its query and how many chunks it returned, token counts, and latency per step.
+Traces contain the question and the retrieved policy text, so leave it off where
+that is not acceptable. Details: [CLAUDE.md](CLAUDE.md), lesson 31.
+
 ## Project layout
 
 ```

@@ -12,6 +12,7 @@ Keep it updated as the project evolves.
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
 | 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | 🚧 In progress |
+| 4     | In progress. First item: LangSmith tracing (lesson 31). | 🚧 In progress |
 
 ### Stage 3 — Multi-agent router (in progress)
 - `src/agents/router.py`: `classify_intent()` (one structured-output LLM call, not a
@@ -555,6 +556,43 @@ seen whole by the LLM). `evaluate()` reports the rank of each snippet.
 - LIMIT: the queries are the questions as written, not what the router or an agent
   would actually send, and snippets prove retrieval, not answer quality.
 
+### 31. LangSmith tracing: off by default, one trace per question
+`LANGSMITH_TRACING=true` (plus `LANGSMITH_API_KEY`, see `.env.example`) traces every
+`/ask`; unset, nothing is traced and nothing is sent. `src/tracing.py` holds the
+helpers. A trace is:
+`ask` (root: session, intent, agent, confidence) → `route` (the decision and both
+rewritten questions; the classifier's LLM call under it) → one `*_agent` run per
+specialist that ran → each agent step's LLM call (token counts and latency come from
+LangSmith itself) and each tool call, whose run shows the query and, in metadata,
+`chunks_returned`, `pages`, `closest_distance` (exclusions also `candidates` and
+`flagged`, i.e. what the quota chose from).
+- **Threads drop the trace context.** The coverage fan-out runs two specialists in a
+  `ThreadPoolExecutor`; a new thread does not inherit contextvars, so the specialists
+  were detached from `ask` and, with tracing enabled per request, not traced at all
+  (found by experiment: the tool in the worker thread had no run tree). The router
+  now submits with `submit_in_context` (a `contextvars.copy_context()`).
+  `tests/test_tracing.py` fails five tests if that is reverted (checked by doing it).
+- **Tests see the trace without sending it.** `tests/fakes.py` has a recording
+  LangSmith client (a fake HTTP session) that folds create/update requests into runs
+  by id; the tests assert the tree, parent links, the tool metadata and that nothing
+  is recorded when tracing is off. `tests/conftest.py` forces `LANGSMITH_TRACING=false`
+  at import (skipped when `RUN_LIVE_EVAL` is set) so a developer's `.env` can't turn
+  tracing on under the unit tests.
+- **The flag is read once per process** (langsmith caches it on first read), and
+  importing `main` doesn't read it, so a value from `.env` works but changing it needs
+  a restart.
+- **A trace backend that is down doesn't break answers:** with an unreachable
+  endpoint `/ask` answered in 0.05 s and the upload errors were only logged (the
+  process was slow to EXIT, ~13 s of retries).
+- **Privacy:** a trace holds the question, the rewritten questions, the retrieved
+  policy text and the answer. The answer is scrubbed (it is traced after
+  `apply_output_guardrails`); the question is NOT. Decide before enabling this
+  against real user data (langsmith's client can hide or process
+  inputs).
+- Not yet verified against a real LangSmith workspace: offline tests prove what is
+  recorded, not how the UI shows it. First live check: set the three variables, ask
+  one coverage question, confirm the tree and that token counts appear on the LLM runs.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -683,6 +721,8 @@ uvicorn main:app --reload
 | `tests/test_guardrails.py`  | Offline guardrail tests                               |
 | `src/agents/tools.py`       | Specialists' retrieval tools returning evidence artifacts |
 | `src/rag/structure.py`      | Page / section / kind metadata for chunks             |
+| `src/tracing.py`            | LangSmith helpers: annotate, context-safe submit, summaries |
+| `tests/test_tracing.py`     | Offline trace-shape tests (recording client)          |
 | `tests/integration/golden.py` | Golden questions + `evaluate()` scoring; live tests beside it |
 | `tests/test_golden_data.py` | Offline checks of the golden set and harness          |
 | `tests/test_loader_boilerplate.py` | Header/footer stripping tests              |
