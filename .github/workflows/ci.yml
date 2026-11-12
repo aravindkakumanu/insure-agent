@@ -1,0 +1,30 @@
+name: CI
+
+# Offline tests only: fake LLMs and a fake vector store, so no OpenAI key, no
+# ingested policy and no network are needed. The live evaluation (tests/integration/)
+# skips itself unless RUN_LIVE_EVAL is set, which this workflow never does.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # 3.10 to match the project (see the pydantic pin in CLAUDE.md, lesson 4).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m pytest -q

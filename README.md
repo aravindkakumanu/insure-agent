@@ -1,5 +1,7 @@
 # InsureAgent
 
+[![CI](https://github.com/aravindkakumanu/insure-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/aravindkakumanu/insure-agent/actions/workflows/ci.yml)
+
 Ask questions about an insurance policy in plain English and get answers that
 cite the page and section they came from, flag how well grounded they are, and
 say what is **not** covered as well as what is.
@@ -120,6 +122,8 @@ fixture makes the real vector store raise if a test forgets to patch it):
 ```bash
 pytest
 ```
+
+This is what CI runs on every push and pull request.
 
 A golden-question evaluation checks retrieval and answers against the real
 policy. It needs the key and an ingested policy, so it is opt-in:

@@ -723,6 +723,7 @@ uvicorn main:app --reload
 | `src/rag/structure.py`      | Page / section / kind metadata for chunks             |
 | `src/tracing.py`            | LangSmith helpers: annotate, context-safe submit, summaries |
 | `tests/test_tracing.py`     | Offline trace-shape tests (recording client)          |
+| `.github/workflows/ci.yml`  | CI: offline `pytest` on push to main and on PRs (no key, no data) |
 | `tests/integration/golden.py` | Golden questions + `evaluate()` scoring; live tests beside it |
 | `tests/test_golden_data.py` | Offline checks of the golden set and harness          |
 | `tests/test_loader_boilerplate.py` | Header/footer stripping tests              |
