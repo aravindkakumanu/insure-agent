@@ -30,6 +30,7 @@ from langchain_core.tools import tool
 from src.agents.langgraph_agent import _EXCLUSION_KEYWORDS
 from src.agents.results import Evidence
 from src.rag.embedder import get_vector_store
+from src.tracing import annotate_retrieval
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,7 @@ def search_policy(query: str) -> tuple[str, list[Evidence]]:
         The most semantically similar policy excerpts, with source labels.
     """
     evidence = _search(query, POLICY_TOP)
+    annotate_retrieval(evidence)
     if not evidence:
         return "No relevant policy content found for this query.", []
     return _format(evidence), evidence
@@ -140,6 +142,7 @@ def search_exclusions(query: str) -> tuple[str, list[Evidence]]:
     # because negation language shifts their embeddings.
     evidence = _search(query, EXCLUSION_POOL)
     if not evidence:
+        annotate_retrieval([], candidates=0, flagged=0)
         return "No exclusion-related content found in the policy.", []
 
     flagged = [e for e in evidence if e["exclusion_language"]]
@@ -167,4 +170,6 @@ def search_exclusions(query: str) -> tuple[str, list[Evidence]]:
         # answer isn't silently empty. Their exclusion_language is False, which
         # caps the specialist's confidence at "medium" (results.assess_confidence).
         chosen = evidence[:POLICY_TOP]
+    # candidates/flagged show how much the quota had to choose from.
+    annotate_retrieval(chosen, candidates=len(evidence), flagged=len(flagged))
     return _format(chosen), chosen

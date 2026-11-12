@@ -43,6 +43,7 @@ from typing import Literal, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from src.agents import claims_agent, coverage_agent, exclusions_agent
@@ -53,6 +54,12 @@ from src.agents.results import (
     RouterResult,
     citations_for,
     weakest_confidence,
+)
+from src.tracing import (
+    annotate,
+    submit_in_context,
+    summarize_decision,
+    summarize_router_result,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,6 +151,7 @@ _session_intent: dict[str, str] = {}
 _session_question: dict[str, str] = {}
 
 
+@traceable(name="route", run_type="chain", process_outputs=summarize_decision)
 def classify_intent(
     question: str,
     previous_intent: Optional[str] = None,
@@ -175,6 +183,7 @@ def classify_intent(
         logger.warning(
             "Intent classification failed; defaulting to %r", DEFAULT_INTENT, exc_info=True
         )
+        annotate(classifier_failed=True)
         return RoutingDecision(DEFAULT_INTENT, question, question)
 
     decision = RoutingDecision(
@@ -295,6 +304,7 @@ def merge_results(
     )
 
 
+@traceable(name="ask", run_type="chain", process_outputs=summarize_router_result)
 def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterResult:
     """
     Classify the question, run the right specialist(s), and return one result.
@@ -311,6 +321,7 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
     if session_id is None:
         session_id = str(uuid.uuid4())
 
+    annotate(session_id=session_id)
     decision = classify_intent(
         question, _session_intent.get(session_id), _session_question.get(session_id)
     )
@@ -342,9 +353,16 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
         # coverage: run both specialists concurrently (each blocks on OpenAI)
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [
-                pool.submit(specialists[name].answer_question, text, session_id)
+                submit_in_context(pool, specialists[name].answer_question, text, session_id)
                 for name, text in questions.items()
             ]
             results = [f.result() for f in futures]
 
-    return apply_output_guardrails(merge_results(results, session_id, intent, questions))
+    merged = apply_output_guardrails(merge_results(results, session_id, intent, questions))
+    annotate(
+        intent=merged.intent,
+        agent=merged.agent,
+        confidence=merged.confidence,
+        unverified_quotes=sum(len(r.unverified_quotes) for r in merged.results),
+    )
+    return merged

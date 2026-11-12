@@ -25,6 +25,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+from langsmith import traceable
 from typing_extensions import TypedDict
 
 from src.agents.tools import search_exclusions
@@ -36,6 +37,7 @@ from src.agents.results import (
     extract_queries,
     find_unverified_quotes,
 )
+from src.tracing import annotate_agent_result, summarize_agent_result
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +179,7 @@ _agent = _build_graph()
 # ---------------------------------------------------------------------------
 
 
+@traceable(name="exclusions_agent", run_type="chain", process_outputs=summarize_agent_result)
 def answer_question(question: str, session_id: Optional[str] = None) -> AgentResult:
     """
     Answer a question with this specialist.
@@ -218,7 +221,7 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
         len(unverified),
         list(queries),
     )
-    return AgentResult(
+    agent_result = AgentResult(
         answer=answer,
         sources=sources,
         agent_name=AGENT_NAME,
@@ -228,3 +231,5 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
         unverified_quotes=unverified,
         queries=queries,
     )
+    annotate_agent_result(agent_result, fell_back)
+    return agent_result

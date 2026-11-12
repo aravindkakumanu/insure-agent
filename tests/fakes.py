@@ -6,9 +6,12 @@ Nothing here touches OpenAI or ChromaDB.
 """
 
 import hashlib
+import json
 from typing import Optional
 from unittest.mock import MagicMock
 
+import langsmith
+import requests
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 
@@ -168,3 +171,67 @@ def make_result(
         evidence=evidence,
         unverified_quotes=unverified_quotes,
     )
+
+
+# ---------------------------------------------------------------------------
+# Trace recording
+# ---------------------------------------------------------------------------
+
+
+class TraceLog:
+    """The runs a LangSmith client was asked to record, merged by run id.
+
+    A run is created by one request and completed by another (the second carries
+    its outputs and any metadata added while it ran), so both are folded together.
+    """
+
+    def __init__(self) -> None:
+        self.runs: dict[str, dict] = {}
+
+    def record(self, body: dict) -> None:
+        run = self.runs.setdefault(body["id"], {"metadata": {}})
+        run.update({k: v for k, v in body.items() if k != "extra" and v is not None})
+        run["metadata"].update((body.get("extra") or {}).get("metadata") or {})
+
+    def named(self, name: str) -> list[dict]:
+        return [r for r in self.runs.values() if r.get("name") == name]
+
+    def one(self, name: str) -> dict:
+        found = self.named(name)
+        assert len(found) == 1, f"expected one {name!r} run, found {len(found)}"
+        return found[0]
+
+    def ancestors(self, run: dict) -> list[str]:
+        """Names of the runs above this one, nearest first."""
+        names = []
+        while run.get("parent_run_id"):
+            run = self.runs[run["parent_run_id"]]
+            names.append(run["name"])
+        return names
+
+
+class _RecordingSession(requests.Session):
+    def __init__(self, log: TraceLog) -> None:
+        super().__init__()
+        self.log = log
+
+    def request(self, method, url, **kwargs):  # type: ignore[override]
+        data = kwargs.get("data")
+        if isinstance(data, (bytes, str)) and data:
+            body = json.loads(data)
+            if isinstance(body, dict) and "id" in body:
+                self.log.record(body)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b"{}"
+        return response
+
+
+def recording_client() -> tuple[langsmith.Client, TraceLog]:
+    """A LangSmith client that keeps runs in memory instead of sending them."""
+    log = TraceLog()
+    client = langsmith.Client(
+        api_key="test", api_url="http://langsmith.invalid",
+        session=_RecordingSession(log), auto_batch_tracing=False,
+    )
+    return client, log
