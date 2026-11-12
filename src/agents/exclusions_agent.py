@@ -3,7 +3,7 @@ exclusions_agent.py — Stage 3: Exclusions specialist
 Explains what the policy does NOT cover. Tool subset: search_exclusions only.
 
 Same pattern as langgraph_agent.py (the Stage 2 reference; see its docstring for
-the graph diagram): its own compiled graph, its own MemorySaver, its own
+the graph diagram): its own compiled graph, its own SqliteSaver, its own
 answer_question(), and the same MAX_ITERATIONS doom-loop guard. The only things
 that differ between the three specialists are the system prompt and the tool
 subset.
@@ -21,7 +21,6 @@ from langchain_core.messages import (
     trim_messages,
 )
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -37,6 +36,7 @@ from src.agents.results import (
     extract_queries,
     find_unverified_quotes,
 )
+from src.agents.sessions import create_checkpointer, thread_id
 from src.tracing import annotate_agent_result, summarize_agent_result
 
 logger = logging.getLogger(__name__)
@@ -156,10 +156,10 @@ def should_continue(state: AgentState) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Graph — compiled once at import, with this agent's own MemorySaver
+# Graph — compiled once at import, with this agent's own SqliteSaver
 # ---------------------------------------------------------------------------
 
-_checkpointer = MemorySaver()
+_checkpointer = create_checkpointer()
 
 
 def _build_graph() -> object:
@@ -193,7 +193,7 @@ def answer_question(question: str, session_id: Optional[str] = None) -> AgentRes
         logger.info("[%s] new session: %s", AGENT_NAME, session_id)
 
     config = {
-        "configurable": {"thread_id": session_id},
+        "configurable": {"thread_id": thread_id(AGENT_NAME, session_id)},
         "recursion_limit": RECURSION_LIMIT,
     }
     result = _agent.invoke(

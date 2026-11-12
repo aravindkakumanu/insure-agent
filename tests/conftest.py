@@ -23,6 +23,11 @@ if not os.environ.get("RUN_LIVE_EVAL"):
     os.environ["LANGSMITH_TRACING"] = "false"
     os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
+# Sessions are durable (src/agents/sessions.py). Unit tests get a private in-memory
+# database per connection, so they never read or write data/sessions.db. Set at
+# import time: the specialists open their checkpointer when their module is imported.
+os.environ["SESSIONS_DB"] = ":memory:"
+
 _MESSAGE = (
     "A test tried to use the REAL vector store (ChromaDB + OpenAI embeddings). "
     "Patch get_vector_store in the module under test."

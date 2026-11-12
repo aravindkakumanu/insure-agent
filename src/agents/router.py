@@ -31,8 +31,8 @@ leaves out what is NOT covered misleads the user.
 SESSIONS: the session_id is passed straight through to the specialist(s), each
 of which keeps its own history under that id. The router remembers the last
 intent per session and hands it to the classifier, so a bare follow-up like
-"what about mold?" stays with the same specialist(s). Like MemorySaver, this
-map is in-process and lost on restart.
+"what about mold?" stays with the same specialist(s). Both that map and each
+specialist's history are stored in SQLite (sessions.py), so they survive a restart.
 """
 
 import logging
@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 
 from src.agents import claims_agent, coverage_agent, exclusions_agent
 from src.agents.guardrails import apply_output_guardrails, check_prompt_injection
+from src.agents.sessions import SessionMap
 from src.agents.results import (
     AgentResult,
     Confidence,
@@ -146,9 +147,10 @@ def _get_router_llm():
     return _router_llm
 
 
-# session_id -> intent / standalone question of that session's previous turn
-_session_intent: dict[str, str] = {}
-_session_question: dict[str, str] = {}
+# session_id -> intent / standalone question of that session's previous turn.
+# Persistent (sessions.py), so a bare follow-up still works after a restart.
+_session_intent = SessionMap("intent")
+_session_question = SessionMap("question")
 
 
 @traceable(name="route", run_type="chain", process_outputs=summarize_decision)
