@@ -51,7 +51,8 @@ A few choices worth knowing about:
 - **Coverage questions always fan out to the Exclusions agent too.** An answer
   about what is covered that hides what is not is the failure this guards against.
 - **Each specialist is its own LangGraph ReAct agent** with its own prompt and
-  tool subset, a step limit that stops runaway loops, and its own memory.
+  tool subset, a step limit that stops runaway loops, and its own conversation
+  history (kept in SQLite, so it survives a restart).
 - **Confidence is computed, not self-reported.** It is derived from what the
   retrieval tools returned, and it measures grounding, not correctness.
 - **Quotes are checked.** Any passage the answer puts in quotation marks is
@@ -187,8 +188,9 @@ tests/                      offline tests; tests/integration/ holds the live eva
 
 - Built and tuned on one policy. The section-heading rules are specific to its
   layout, so another policy layout needs its own rules.
-- Conversation memory and the router's session state live in process memory and
-  are lost on restart.
+- Sessions are stored in a local SQLite file (`data/sessions.db`), so they survive
+  restarts, but nothing expires or deletes them, and the file holds unscrubbed
+  question and answer text. One machine only: it is not a shared database.
 - No authentication, rate limiting or multi-tenancy.
 - Confidence says how well grounded an answer is, not whether it is complete or
   right, and the injection check is a tripwire, not a defence.

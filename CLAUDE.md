@@ -12,13 +12,13 @@ Keep it updated as the project evolves.
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
 | 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | 🚧 In progress |
-| 4     | In progress. First item: LangSmith tracing (lesson 31). | 🚧 In progress |
+| 4     | In progress. Done: LangSmith tracing (lesson 31), CI, durable sessions (lesson 32). | 🚧 In progress |
 
 ### Stage 3 — Multi-agent router (in progress)
 - `src/agents/router.py`: `classify_intent()` (one structured-output LLM call, not a
   graph) + `route_and_answer()` (fan-out, merge, session pass-through)
 - `coverage_agent.py` (`search_policy`), `exclusions_agent.py` (`search_exclusions`),
-  `claims_agent.py` (both tools): each its own compiled graph, MemorySaver,
+  `claims_agent.py` (both tools): each its own compiled graph, SqliteSaver,
   `answer_question()`, and `MAX_ITERATIONS` guard
 - `/ask` now goes through the router; `QuestionResponse` has `agent` and `confidence`
 - Specialists return typed `AgentResult`s; the router merges them into a `RouterResult`
@@ -47,7 +47,8 @@ Keep it updated as the project evolves.
 - Replaced LCEL chain with a LangGraph ReAct agent (`src/agents/langgraph_agent.py`)
 - Two retrieval tools: `search_policy` (general) and `search_exclusions` (exclusion post-filter)
 - LLM decides which tool(s) to call based on the question; can call both for broad queries
-- Conversation memory via `MemorySaver` keyed by `session_id` (in-process, not durable)
+- Conversation memory via `MemorySaver` keyed by `session_id` (in-process, not durable;
+  the Stage 3 specialists replaced it with SQLite, lesson 32)
 - `/ask` endpoint now accepts optional `session_id` and always returns one
 - `qa_agent.py` preserved as Stage 1 reference but no longer wired to the endpoint
 - Unit test patched to use `fixed_token` strategy (semantic strategy requires live OpenAI calls)
@@ -133,8 +134,8 @@ negation language shifts their embeddings away from affirmative queries.
 `MemorySaver` is a dict in the server process keyed by `thread_id` (our
 `session_id`). Each `/ask` call with the same `session_id` rehydrates the
 full message history, so follow-up questions have context.
-**Limitation**: sessions are lost on server restart. For production, swap
-`MemorySaver` for `SqliteSaver` or `RedisSaver` (same API, durable storage).
+**Limitation**: sessions are lost on server restart. (Done for the Stage 3
+specialists: lesson 32. `langgraph_agent.py` still uses `MemorySaver`.)
 
 ### 10. Memory window — trim to MEMORY_WINDOW before LLM call
 The full message history grows without bound. In `call_model` we slice to
@@ -236,12 +237,11 @@ Agent reuses `search_policy` + `search_exclusions` and gets its claims focus fro
 its system prompt (queries like "duties after loss", "proof of loss").
 
 ### 20. Sessions across several agents
-Each specialist has its own `MemorySaver`; the same `session_id` is the
-`thread_id` in each, so histories are independent per agent. The router keeps
+Each specialist has its own checkpointer (SqliteSaver since lesson 32); the thread
+is `"<agent>:<session_id>"`, so histories are independent per agent. The router keeps
 `_session_intent[session_id]` and passes the previous label to the classifier so
 a bare follow-up ("what about mold?") returns the same intent and lands on the
-same agent(s). Known limits (both in-process, lost on restart): that map, and
-a session whose intent changes mid-conversation will hit an agent that has not
+same agent(s). Known limit: a session whose intent changes mid-conversation will hit an agent that has not
 seen the earlier turns.
 Also: sources are collected from the current turn only. Stage 2 scanned the
 whole session history, so sources from earlier questions leaked into later ones.
@@ -342,7 +342,7 @@ output degrades to the old behaviour instead of failing.
 - The rewrite also resolves bare follow-ups: the router remembers the previous
   STANDALONE question per session (`_session_question`) and passes it with
   `previous_intent`, so "what about mold?" then "and fungus?" keeps its topic.
-  (In-process, lost on restart, like `_session_intent`.)
+  (Persistent, like `_session_intent`: lesson 32.)
 - Side effect to know: a specialist's own history stores the rewritten question,
   not the user's literal words. `RouterResult.questions` records what each got.
 - Cost: no extra LLM call, only a larger structured output from the same call.
@@ -593,6 +593,48 @@ LangSmith itself) and each tool call, whose run shows the query and, in metadata
   recorded, not how the UI shows it. First live check: set the three variables, ask
   one coverage question, confirm the tree and that token counts appear on the LLM runs.
 
+### 32. Durable sessions: SQLite instead of in-process memory
+Conversation state survived nothing: each specialist's `MemorySaver` and the router's
+`_session_intent` / `_session_question` dicts lived in process memory, so a restart
+(or a second worker) dropped every conversation and broke "what about mold?"
+follow-ups. `src/agents/sessions.py` moves both to one SQLite file
+(`SESSIONS_DB`, default `data/sessions.db`, gitignored; `:memory:` gives a private
+throwaway database and is what the test suite uses).
+- **One file, several savers, so thread ids carry the agent name.** Each specialist
+  keeps its own `SqliteSaver` (own connection), but a saver keys rows by `thread_id`
+  alone. Using the bare `session_id` would make Coverage and Exclusions read and
+  write the SAME thread, merging their histories and undoing lesson 20's isolation.
+  `thread_id(agent, session_id)` = `"coverage:<id>"` etc. (pinned by a test that
+  fails without the prefix).
+- **Router state is a `SessionMap`** (dict-like: `get`, `[]=`, `in`, `clear`), so the
+  router code and the tests that clear it barely changed. It connects lazily:
+  importing the router opens no file (lesson 11).
+- **Checked, not assumed:** the evidence artifacts on a past `ToolMessage` come back
+  after a restart; two threads writing one file (the coverage fan-out) never hit
+  "database is locked" (WAL mode, 30 s busy timeout); and across THREE real Python
+  processes a follow-up kept its intent, standalone question and agent history while
+  a different session id started clean. The restart tests also fail if the
+  checkpointer ignores the file or the router maps are plain dicts (both tried).
+- **Dependency pins:** `langgraph-checkpoint-sqlite==3.1.1`. 3.1.2+ requires
+  `langgraph-checkpoint>=4.3`, and we pin 4.2.0 (the langgraph 1.2.14 stack); taking
+  the newer pair would have meant an unrelated upgrade. It brings `aiosqlite` and
+  `sqlite-vec`, which has a manylinux wheel for Python 3.10. Verified by installing
+  `requirements.txt` into a fresh 3.10 venv (the check that CI failed on once).
+- **PRIVACY (new):** this file holds the conversation text: the questions as each agent
+  received them (the router's rewrite; the original for claims) and the models'
+  answers BEFORE output scrubbing (guardrails scrub what is returned and logged, not
+  what the graph stores). Memory used to evaporate; now it is on disk. The file is
+  created owner-only (0600) and gitignored, but NOTHING expires or deletes sessions:
+  it grows without bound, and old PII stays until you delete the file.
+- **Limits:** one machine (SQLite, not a shared database); several worker processes
+  on one host SHOULD work (WAL + busy timeout) but only threads writing one file are
+  tested, not separate processes writing at once; the
+  full history is stored and only the LLM context is trimmed (`MEMORY_WINDOW`), so a
+  long session costs disk, not tokens. Next steps if it matters: a retention policy
+  (delete sessions idle for N days), encryption at rest, or Postgres for several hosts.
+- `langgraph_agent.py` (Stage 2 reference) keeps its `MemorySaver`: it is not on the
+  `/ask` path and was left untouched on purpose.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -721,6 +763,8 @@ uvicorn main:app --reload
 | `tests/test_guardrails.py`  | Offline guardrail tests                               |
 | `src/agents/tools.py`       | Specialists' retrieval tools returning evidence artifacts |
 | `src/rag/structure.py`      | Page / section / kind metadata for chunks             |
+| `src/agents/sessions.py`    | SQLite-backed sessions: specialist checkpointers + router state |
+| `tests/test_sessions.py`    | Offline restart / isolation / concurrency tests       |
 | `src/tracing.py`            | LangSmith helpers: annotate, context-safe submit, summaries |
 | `tests/test_tracing.py`     | Offline trace-shape tests (recording client)          |
 | `.github/workflows/ci.yml`  | CI: offline `pytest` on push to main and on PRs (no key, no data) |
