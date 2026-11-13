@@ -11,10 +11,10 @@ Keep it updated as the project evolves.
 |-------|------------------------------------------|----------------|
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
-| 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | 🚧 In progress |
+| 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | ✅ Complete     |
 | 4     | In progress. Done: LangSmith tracing (lesson 31), CI, durable sessions (lesson 32). | 🚧 In progress |
 
-### Stage 3 — Multi-agent router (in progress)
+### Stage 3 — Multi-agent router
 - `src/agents/router.py`: `classify_intent()` (one structured-output LLM call, not a
   graph) + `route_and_answer()` (fan-out, merge, session pass-through)
 - `coverage_agent.py` (`search_policy`), `exclusions_agent.py` (`search_exclusions`),
@@ -29,11 +29,12 @@ Keep it updated as the project evolves.
 - Router rewrites the question per specialist (lesson 24); retrieval tools return
   evidence artifacts (lesson 25); chunks carry page/section metadata (lesson 26);
   page headers/footers and the table of contents are kept out of the chunks
-  (lesson 27). **Re-ingest after pulling these changes**: `/ingest` replaces a
+  (lesson 27). **Re-ingest after changing the loader, chunking or metadata code**: `/ingest` replaces a
   PDF's chunks, no need to wipe `data/chroma_db`.
-- `langgraph_agent.py` is untouched (Stage 2 reference; the specialists import its tools)
-- Tests: `tests/test_router.py` (offline)
-- Not yet verified against the real OpenAI API: run the curl checks in lesson 20
+- `langgraph_agent.py` is the Stage 2 reference, not on the `/ask` path; `tools.py`
+  imports `_EXCLUSION_KEYWORDS` from it (the one edit made to it, lesson 22)
+- Tests: offline suite in `tests/` (`pytest`); live evaluation in `tests/integration/` (lesson 30)
+- Real-API checks: the curl commands in lesson 20 and the golden evaluation (lesson 30)
 
 ### Stage 2 hardening — Oct 30, 2026
 - `/ask` and `/ingest` are plain `def` (threadpool) instead of `async def`
@@ -73,7 +74,7 @@ Keep it updated as the project evolves.
 - **OpenAI** — LLM backend (GPT-4o for answers, text-embedding-3-small for embeddings)
 
 The system ingests insurance PDFs → chunks & embeds them → stores in Chroma → serves
-answers through a FastAPI endpoint backed by LangChain LCEL chains.
+answers through a FastAPI endpoint backed by a router and three LangGraph specialist agents.
 
 ---
 
@@ -99,7 +100,7 @@ main.py                 ← FastAPI app entry point
 | LLM          | OpenAI GPT-4o            | Strong reasoning; easy via langchain-openai          |
 | Embeddings   | text-embedding-3-small   | Cheap, fast, high quality; enough for insurance docs |
 | Vector DB    | ChromaDB (local)         | Zero-infra, runs in-process during development       |
-| Orchestration| LangChain LCEL           | Modern pipe-based chains; RetrievalQA removed in 1.x |
+| Orchestration| LangGraph + LangChain    | Loops, tool choice and memory; LCEL only in the Stage 1 reference chain |
 | API          | FastAPI                  | Async, typed, auto-docs at /docs                     |
 | PDF Parsing  | PyMuPDF (`import pymupdf`)| Fastest and most accurate Python PDF library        |
 | Env Secrets  | python-dotenv            | Load .env files safely into os.environ               |
@@ -154,7 +155,7 @@ and test runs. Solution: `_get_llm()` singleton that initializes on first call.
 The `test_load_pdf_returns_chunks` test patches `CHUNK_STRATEGY = "fixed_token"`
 so it never hits the semantic chunker (which calls the OpenAI embeddings API).
 Rule: unit tests must be fully offline. Integration tests that need a real API
-key belong in a separate `tests/integration/` folder (not yet created).
+key belong in `tests/integration/` (lesson 30).
 `tests/conftest.py` enforces this: an autouse fixture makes the real
 `get_vector_store` raise, so a test that forgets to patch fails loudly. (It was
 added after a test run silently reached the real ChromaDB and OpenAI embeddings
@@ -207,8 +208,7 @@ Lessons:
   (every node run counts, so one agent+tool cycle = 2 steps), and its default
   differs by version: 10007 in langgraph 1.2.x, 25 in older releases. We pass
   `RECURSION_LIMIT = 2 * MAX_ITERATIONS + 5` so it is a backstop above our
-  guard in any version. I first assumed the default was 25 and was wrong; an
-  empirical check caught it.
+  guard in any version.
 - **Test with a fake LLM.** `LoopingLLM` always requests a tool and the vector
   store is patched, so the scenario is fully offline (rule 12).
 
@@ -289,8 +289,7 @@ also holds the shared `current_turn`, `extract_sources`, `assess_confidence`.
   flagged `medium` by the check above. Added `"exclusion"` to the list (the one
   deliberate edit to the Stage 2 file) and corrected the comment. On the 69
   ingested chunks, matches went 31 → 32. Lesson: verify a "stem" claim with `in`
-  before trusting a comment; `test_exclusion_keywords_match_exclusion_and_exclusions`
-  pins it.
+  before trusting a comment. (No test pins the keyword list yet.)
 - **"Not otherwise excluded" is not an exclusion (found in a live run).** The
   burst-pipe coverage grant says "...water or steam not otherwise excluded", which
   matched the `"exclud"` keyword, so the Exclusions Agent was handed the coverage
@@ -374,7 +373,7 @@ survive `ToolNode`). Everything downstream reads the artifact:
 - Both tools skip `kind == "toc"` chunks (lesson 27) by over-fetching `TOC_SLACK`
   extra candidates and filtering afterwards, so a result is never short because a
   contents chunk was dropped.
-- `search_exclusions` returns up to 6 chunks (was 4) from a pool of 30. What
+- `search_exclusions` returns up to 6 chunks from a pool of 30. What
   COUNTS as exclusion text is decided by section metadata or keywords; which chunks
   are RETURNED is decided by a quota (lesson 29).
 - `/ask` also returns `citations` (source, page, page_end, section, subsection) for
@@ -461,9 +460,9 @@ then looked right once the data was clean. Fix the data before tuning the check.
 3. **Quota (current):** the closest `EXCLUSION_SECTION_QUOTA` (**4**) chunks from
    genuine exclusions regions are guaranteed a place; the remaining slots (of
    `EXCLUSION_TOP` = 6) go to the closest of everything else flagged; the result is
-   returned closest-first. The quota was 3 and is **4, tuned from the probe**: for
+   returned closest-first. The quota is **4**, tuned from the probe: for
    the agent's real query `water damage` the flood chunk was raw rank 8/30 but only
-   exclusions-region rank 4, so 3 missed it by one. `Evidence.in_exclusions_section` records region
+   exclusions-region rank 4, so 3 would miss it by one. `Evidence.in_exclusions_section` records region
    membership (kind == "exclusions" OR `has_exclusions`), separately from
    `exclusion_language` (which also counts keyword hits).
 Replaying stored vectors as proxy queries showed the quota keeps both the $5,000
@@ -517,9 +516,7 @@ seen whole by the LLM). `evaluate()` reports the rank of each snippet.
   and flood is the classic water exclusion. Chunk 51 (the only flood chunk) is 833
   chars, but it OPENS with soil-conditions text and the flood item sits in its last
   fifth (character ~653 of 817), so dilution by other content may well be part of why
-  it ranks poorly for "water damage" (raw rank 8/30). An earlier version of this note
-  said the opposite after checking only the chunk's size and the count of numbered
-  items, never where flood sits in the text - that was wrong.
+  it ranks poorly for "water damage" (raw rank 8/30).
   **Diagnosed (live): NEVER retrieved.** The Exclusions Agent ran ONE search with the
   query `water damage`; the flood chunk didn't make the six results (the sewer
   chunk did, at #4). An agent's query can be far terser than the user's question and
@@ -710,9 +707,9 @@ Controlled by `CHUNK_STRATEGY` at the top of `src/rag/loader.py`.
 
 **Default is `semantic`.** Only switch to `fixed_token` for debugging or speed testing.
 
-After changing `CHUNK_STRATEGY`, always wipe and re-ingest:
+After changing `CHUNK_STRATEGY`, re-ingest. `/ingest` replaces that PDF's chunks
+(lesson 15), so there is no need to delete `data/chroma_db`:
 ```bash
-rm -rf data/chroma_db
 curl -X POST http://127.0.0.1:8000/ingest \
   -H "Content-Type: application/json" \
   -d '{"pdf_path": "data/policies/apc220-ho-policy-jacket.pdf"}'
@@ -753,7 +750,7 @@ uvicorn main:app --reload
 
 | File                        | Purpose                                               |
 |-----------------------------|-------------------------------------------------------|
-| `src/rag/loader.py`         | PDF → Document chunks (PyMuPDF + RecursiveCharacterTextSplitter) |
+| `src/rag/loader.py`         | PDF → Document chunks (PyMuPDF, semantic chunking, header/footer stripping, metadata) |
 | `src/rag/embedder.py`       | Chunks → Vectors → ChromaDB (text-embedding-3-small)  |
 | `src/rag/retriever.py`      | Query ChromaDB, return top-k semantically similar docs |
 | `src/agents/qa_agent.py`    | LCEL RAG chain: retriever + GPT-4o + prompt           |
