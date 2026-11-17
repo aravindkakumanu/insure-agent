@@ -9,9 +9,19 @@ from pathlib import Path
 
 import pytest
 
+from src.agents.guardrails import GuardrailViolation, check_prompt_injection, scrub_pii
 from src.agents.results import _normalise
 from tests.fakes import make_evidence
-from tests.integration.golden import END_TO_END, GOLDEN, GoldenCase, evaluate, section_ranks
+from tests.integration.golden import (
+    BEHAVIOR,
+    CATEGORIES,
+    END_TO_END,
+    GOLDEN,
+    SPLITS,
+    GoldenCase,
+    evaluate,
+    section_ranks,
+)
 
 CHROMA_DIR = Path("data/chroma_db")
 
@@ -134,3 +144,92 @@ def test_section_ranks_count_only_chunks_inside_exclusions_regions() -> None:
         "not present": None,
     }
     assert evaluate(case, evidence).ranks["Flood, including, but not limited to, surface water"] == 3
+
+
+# --- the expanded eval set (CLAUDE.md lesson 33) ----------------------------------
+
+
+def test_every_case_has_a_known_category_and_split() -> None:
+    for case in (*GOLDEN, *BEHAVIOR):
+        assert case.category in CATEGORIES, case.id
+        assert case.split in SPLITS, case.id
+
+
+def test_ids_are_unique_across_retrieval_and_behavior_cases() -> None:
+    ids = [c.id for c in (*GOLDEN, *BEHAVIOR)]
+    assert len(ids) == len(set(ids))
+
+
+def test_retrieval_cases_cover_categories_a_to_f_and_behavior_cases_g_and_k() -> None:
+    assert {c.category for c in GOLDEN} >= set("ABCDEF")
+    assert {c.category for c in BEHAVIOR} == set("GHK")
+
+
+def test_the_original_cases_stay_in_dev() -> None:
+    """The quota was tuned against them, so they can never count as held-out."""
+    original = {
+        "water-exclusions-flood", "water-damage-short-query", "mold-remediation-limit",
+        "mold-exclusion", "burst-pipe-coverage", "burst-pipe-exclusions", "claim-first-steps",
+        "proof-of-loss", "legal-action-deadline", "appraisal", "settlement-timing",
+        "theft-police-report", "deductible", "silverware-theft-limit", "collapse",
+    }
+    assert {c.id for c in GOLDEN if c.split == "heldout"}.isdisjoint(original)
+    assert all(c.split == "dev" for c in GOLDEN if c.id in original)
+
+
+def test_held_out_cases_follow_the_rule_fixed_before_any_result() -> None:
+    """Every third new case (not counting category H) in file order; all of H is held out."""
+    original = 15
+    new = [c for c in GOLDEN[original:] if c.category != "H"]
+    behavior = [c for c in BEHAVIOR if c.category != "H"]
+    assert [c.id for c in new if c.split == "heldout"] == [c.id for c in new[2::3]]
+    assert [c.id for c in behavior if c.split == "heldout"] == [c.id for c in behavior[2::3]]
+
+
+def test_every_category_h_case_is_held_out() -> None:
+    """The owner wrote them blind, so none of them may ever guide tuning."""
+    h = [c for c in (*GOLDEN, *BEHAVIOR) if c.category == "H"]
+    assert len(h) == 10
+    assert all(c.split == "heldout" for c in h)
+
+
+def test_behavior_cases_say_what_a_good_outcome_is() -> None:
+    for case in BEHAVIOR:
+        assert len(case.expect) > 20, case.id
+        assert case.blocked_by_guardrail or case.no_invented_figures or case.must_not_contain, (
+            f"{case.id}: nothing here could ever fail"
+        )
+
+
+def test_the_injection_case_really_trips_the_guardrail() -> None:
+    blocked = [c for c in BEHAVIOR if c.blocked_by_guardrail]
+    assert blocked
+    for case in blocked:
+        with pytest.raises(GuardrailViolation):
+            check_prompt_injection(case.question)
+
+
+def test_no_other_case_trips_the_injection_tripwire() -> None:
+    """A question that never reaches the agents cannot test them."""
+    reaches_agents = [c.question for c in GOLDEN] + [
+        c.question for c in BEHAVIOR if not c.blocked_by_guardrail
+    ]
+    for question in reaches_agents:
+        check_prompt_injection(question)  # must not raise
+
+
+def test_the_pii_case_contains_something_the_scrubber_redacts() -> None:
+    for case in (c for c in BEHAVIOR if c.category == "K" and not c.blocked_by_guardrail):
+        for forbidden in case.must_not_contain:
+            assert forbidden in case.question  # it really is in the input...
+            assert forbidden not in scrub_pii(case.question)  # ...and the scrubber removes it
+
+
+def test_any_of_passes_on_one_snippet_and_fails_on_none() -> None:
+    case = GoldenCase(id="x", question="q", tool="search_policy", must_retrieve=("alpha", "beta"), any_of=True)
+    one = {"text": "only alpha here", "page": 1, "page_end": 1, "distance": 0.5}
+    none = {"text": "nothing", "page": 1, "page_end": 1, "distance": 0.5}
+    assert evaluate(case, [one]).passed
+    assert not evaluate(case, [none]).passed
+    strict = GoldenCase(id="y", question="q", tool="search_policy", must_retrieve=("alpha", "beta"))
+    assert not evaluate(strict, [one]).passed
