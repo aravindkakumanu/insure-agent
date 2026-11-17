@@ -747,3 +747,121 @@ def test_the_rewrite_keeps_what_the_user_is_worried_about_not_only_the_event() -
     agents searched 'slip and fall' and missed the liability passage."""
     prompt = " ".join(router.ROUTER_PROMPT.split())
     assert "what the user is worried about or asking for (a threat to sue" in prompt
+
+
+# ---------------------------------------------------------------------------
+# A specialist that skips its search gets one explicit nudge before the text is discarded
+# (live finding: "What does my policy cover?" - the coverage agent never searched, twice in a row)
+# ---------------------------------------------------------------------------
+
+
+def _agent_that_skips_then_searches(calls: list) -> MagicMock:
+    def answer(question, session_id):
+        calls.append(question)
+        searched = router.SEARCH_NUDGE in question
+        return make_result(
+            "coverage",
+            answer="searched answer" if searched else "from memory",
+            queries=("search_policy: x",) if searched else (),
+            session_id=session_id,
+        )
+
+    return MagicMock(side_effect=answer)
+
+
+def test_a_skipped_search_is_retried_once_with_a_nudge(monkeypatch) -> None:
+    calls: list = []
+    monkeypatch.setattr(coverage_agent, "answer_question", _agent_that_skips_then_searches(calls))
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("coverage", "What is covered?", "What is excluded?"))
+    monkeypatch.setattr(exclusions_agent, "answer_question", lambda q, s: make_result("exclusions", session_id=s))
+
+    result = router.route_and_answer("What does my policy cover?", "s1")
+
+    assert calls == ["What is covered?", "What is covered?" + router.SEARCH_NUDGE]
+    assert "searched answer" in result.answer
+    assert router.UNGROUNDED_ANSWER not in result.answer
+
+
+def test_a_search_that_is_skipped_twice_is_still_discarded(monkeypatch) -> None:
+    calls: list = []
+    monkeypatch.setattr(claims_agent, "answer_question", lambda q, s: (calls.append(q), make_result("claims", queries=(), answer="memory", session_id=s))[1])
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("claims"))
+
+    result = router.route_and_answer("How do I file a claim?", "s1")
+
+    assert len(calls) == 2 and calls[1].endswith(router.SEARCH_NUDGE)
+    assert router.UNGROUNDED_ANSWER in result.answer and "memory" not in result.answer
+
+
+def test_a_specialist_that_searched_is_called_once(fake_agents, monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("claims"))
+
+    router.route_and_answer("How do I file a claim?", "s1")
+
+    fake_agents["claims"].assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# A stronger model must confirm "out_of_scope" before the router refuses
+# (live finding: the cheap classifier refused the arson reward and selling the house)
+# ---------------------------------------------------------------------------
+
+
+class FakeScopeLLM:
+    def __init__(self, relevant: bool = False, error: Exception = None) -> None:
+        self.relevant, self.error, self.seen = relevant, error, []
+
+    def invoke(self, messages):
+        self.seen.append(messages)
+        if self.error:
+            raise self.error
+        return router.ScopeCheck(relevant=self.relevant)
+
+
+def test_the_confirmation_prompt_defaults_to_answering(monkeypatch) -> None:
+    prompt = " ".join(router.SCOPE_CHECK_PROMPT.split())
+    assert "When unsure, answer true" in prompt
+    assert "transferring it" in prompt and "rewards" in prompt
+    assert router.CONFIRM_MODEL != router.ROUTER_MODEL
+
+
+def test_a_refusal_the_stronger_model_rejects_goes_to_the_agents(fake_agents, monkeypatch) -> None:
+    confirm = FakeScopeLLM(relevant=True)
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope", "COV?", "EXC?"))
+    monkeypatch.setattr(router, "_get_confirm_llm", lambda: confirm)
+
+    result = router.route_and_answer("Can the buyer take over my policy?", "s1")
+
+    assert len(confirm.seen) == 1
+    assert result.agent == "coverage+exclusions" and result.answer != router.OUT_OF_SCOPE_ANSWER
+    fake_agents["coverage"].assert_called_once()
+
+
+def test_a_refusal_the_stronger_model_confirms_stands(fake_agents, monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope"))
+    monkeypatch.setattr(router, "_get_confirm_llm", lambda: FakeScopeLLM(relevant=False))
+
+    result = router.route_and_answer("Can I deduct my premium on my taxes?", "s1")
+
+    assert result.answer == router.OUT_OF_SCOPE_ANSWER
+    for mock in fake_agents.values():
+        mock.assert_not_called()
+
+
+def test_a_failed_confirmation_keeps_the_refusal(fake_agents, monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope"))
+    monkeypatch.setattr(router, "_get_confirm_llm", lambda: FakeScopeLLM(error=RuntimeError("api down")))
+
+    result = router.route_and_answer("Can I deduct my premium on my taxes?", "s1")
+
+    assert result.answer == router.OUT_OF_SCOPE_ANSWER
+
+
+def test_the_confirmation_is_only_asked_when_the_cheap_model_wants_to_refuse(fake_agents, monkeypatch) -> None:
+    confirm = FakeScopeLLM(relevant=False)
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("coverage"))
+    monkeypatch.setattr(router, "_get_confirm_llm", lambda: confirm)
+
+    router.route_and_answer("Is fire covered?", "s1")
+
+    assert confirm.seen == []

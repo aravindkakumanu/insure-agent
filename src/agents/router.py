@@ -219,6 +219,57 @@ def _get_router_llm():
     return _router_llm
 
 
+# The cheap classifier proposes "out_of_scope"; a stronger model must CONFIRM before the router
+# refuses. gpt-4o-mini wrongly refused real policy questions again and again (suing the insurer,
+# an arson reward, selling the house), and every wrong refusal is a failed answer. The extra call
+# is made only for questions the cheap model wants to refuse.
+CONFIRM_MODEL = "gpt-4o"
+
+SCOPE_CHECK_PROMPT = """\
+A user asked a question about their homeowners insurance policy. Decide whether the policy
+DOCUMENT could contain any provision relevant to it: what it covers or excludes, limits,
+conditions, definitions, how to make a claim, rights and deadlines, or how the policy itself
+works (cancelling, renewing, transferring it, paying premiums, rewards, payments to others).
+Answer relevant=true if so, even when the answer might turn out to be "no" or "the policy does
+not say". Answer relevant=false only for questions with nothing to do with such a document:
+another kind of insurance (auto, life, health), taxes, investing, what a house is worth, legal
+advice unrelated to this policy, general knowledge, chit-chat. When unsure, answer true.
+"""
+
+
+class ScopeCheck(BaseModel):
+    """Structured output of the confirmation call."""
+
+    relevant: bool = Field(description="True if a homeowners policy document could address the question")
+
+
+_confirm_llm = None  # lazy: needs OPENAI_API_KEY at construction time
+
+
+def _get_confirm_llm():
+    global _confirm_llm
+    if _confirm_llm is None:
+        _confirm_llm = ChatOpenAI(model=CONFIRM_MODEL, temperature=0).with_structured_output(ScopeCheck)
+    return _confirm_llm
+
+
+def _policy_could_answer(question: str) -> bool:
+    """
+    Second opinion on an out_of_scope label. True means "do not refuse".
+
+    If the confirmation call itself fails, the cheap model's label stands (the behaviour
+    before this check existed), and the failure is logged.
+    """
+    try:
+        verdict = _get_confirm_llm().invoke(
+            [SystemMessage(content=SCOPE_CHECK_PROMPT), HumanMessage(content=question)]
+        )
+        return bool(verdict.relevant)
+    except Exception:
+        logger.warning("Scope confirmation failed; keeping out_of_scope", exc_info=True)
+        return False
+
+
 # session_id -> intent / standalone question of that session's previous turn.
 # Persistent (sessions.py), so a bare follow-up still works after a restart.
 _session_intent = SessionMap("intent")
@@ -267,7 +318,13 @@ def classify_intent(
         not_in_policy=OUTSIDE_TOPICS.get(getattr(result, "outside_topic", "none"), ""),
         names_specific_subject=bool(getattr(result, "names_specific_subject", True)),
     )
-    logger.info("Router: %r -> %s (previous=%s)", question[:60], intent, previous_intent)
+    if decision.intent == "out_of_scope":
+        confirmed = not _policy_could_answer(question)
+        annotate(out_of_scope_confirmed=confirmed)
+        if not confirmed:
+            logger.info("Router: out_of_scope overruled by the confirmation step for %r", question[:60])
+            decision = replace(decision, intent="coverage")
+    logger.info("Router: %r -> %s (previous=%s)", question[:60], decision.intent, previous_intent)
     return decision
 
 
@@ -380,6 +437,28 @@ def merge_results(
     )
 
 
+# Added to the question for the single retry when a specialist answered without searching.
+SEARCH_NUDGE = (
+    "\n\n(You must call your search tool and answer only from what it returns; do not answer "
+    "before searching the policy.)"
+)
+
+
+def _answer_with_search(module, text: str, session_id: str) -> AgentResult:
+    """
+    Run one specialist; if it answered without a single policy search, retry ONCE with an
+    explicit nudge to search. Live finding: on a broad question ("what does my policy
+    cover?") the coverage agent sometimes skipped its search entirely. Anything still
+    unsearched after the retry is discarded by `_discard_ungrounded`.
+    """
+    result = module.answer_question(text, session_id)
+    if result.queries:
+        return result
+    logger.warning("[%s] answered without searching; retrying once with a nudge", result.agent_name)
+    annotate(search_retry=True)
+    return module.answer_question(text + SEARCH_NUDGE, session_id)
+
+
 def _discard_ungrounded(result: AgentResult) -> AgentResult:
     """Replace an answer that was written without a single policy search."""
     if result.queries:
@@ -462,12 +541,12 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
     }
     if len(questions) == 1:
         (name, text), = questions.items()
-        results = [specialists[name].answer_question(text, session_id)]
+        results = [_answer_with_search(specialists[name], text, session_id)]
     else:
         # coverage: run both specialists concurrently (each blocks on OpenAI)
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [
-                submit_in_context(pool, specialists[name].answer_question, text, session_id)
+                submit_in_context(pool, _answer_with_search, specialists[name], text, session_id)
                 for name, text in questions.items()
             ]
             results = [f.result() for f in futures]

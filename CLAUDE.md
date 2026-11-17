@@ -730,6 +730,17 @@ runs. Findings (`baselines/2026-11-17-query-wording.md`, tool `tests/integration
   the classifier (gpt-4o-mini) carries too many jobs now (intent, two rewrites, out_of_scope,
   outside_topic, subject). Candidates: a confirmation step before refusing, or a stronger model.
 
+### 36. Retry a skipped search; make a stronger model confirm a refusal
+- **Skipped search:** on "What does my policy cover?" the coverage agent twice answered without any
+  search, and the no-search guard (lesson 34) replaced its section with "couldn't find policy text".
+  `_answer_with_search` now retries once with `SEARCH_NUDGE` before `_discard_ungrounded` applies.
+- **Refusals need a second opinion:** `out_of_scope` from gpt-4o-mini is confirmed by gpt-4o
+  (`ScopeCheck`, defaults to "relevant" when unsure); the confirmation runs only for would-be
+  refusals, and a failed confirmation call keeps the refusal. This fixed `h2-selling-the-house`
+  (refused 8 of 8 times). Unit tests stub the confirmation (`conftest.py`), so they never call it.
+- Evidence: `baselines/2026-11-17-retry-and-confirm.md` (7 targeted cases, ~$0.30). The retry did
+  not fire live in that run; it is proven offline only.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)

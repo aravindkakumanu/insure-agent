@@ -1,0 +1,145 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 26 items / 19 deselected / 7 selected
+
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-auto-deductible] 
+=== out-of-scope-auto-deductible: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-market-value] 
+=== out-of-scope-market-value: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-tax-deduction] 
+=== out-of-scope-tax-deduction: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[rates-after-claim] 
+=== rates-after-claim: agent=not_in_policy confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[general-coverage-question-is-still-answered] 
+=== general-coverage-question-is-still-answered: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: policy coverage
+    [exclusions] searched -> search_exclusions: exclusions
+    [exclusions] searched -> search_exclusions: limitations
+    [exclusions] searched -> search_exclusions: conditions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers a variety of protections, including:
+      
+      1. **Increased Coverage on Money (Coverage M):** The policy increases the limit on money, bullion, bank notes, coins, and other numismatic property under Personal Property Protection—Coverage C to the amount shown on the Policy Declarations.
+      
+      2. **Business Pursuits (Coverage P):** Family Liability Protection—Coverage X and Guest Medical Protection—Coverage Y are extended to cover specified business pursuits of an insured person, with certain conditions.
+      
+      3. **Increased Coverage on Securities (Coverage S):** The $1,000 limitation on securities and related items under Personal Property Protection—Coverage C is increased to the amount shown on the Policy Declarations.
+      
+      4. **Satellite Dish Antennas (Coverage SD):** Personal Property Protection—Coverage C is extended to cover sudden and accidental direct physical loss to satellite dish antennas and their systems on your residence premises, subject to the provisions of Coverage C.
+      
+      5. **Increased Coverage on Theft of Silverware (Coverage ST):** The limitation on theft of goldware, silverware, pewterware, and platinumware under Personal Property Protection—Coverage C is increased to the amount shown on the Policy Declarations.
+      
+      6. **Building Codes (Coverage BC):** The policy will pay up to 10% of the amount of insurance under Dwelling Protection—Coverage A to comply with local building codes after a covered loss to the dwelling.
+      
+      7. **Increased Coverage on Business Property (Coverage BP):** The limitation on business property located on the residence premises is increased to the amount shown on the Policy Declarations.
+      
+      8. **Increased Coverage on Electronic Data Processing Equipment (Coverage DP):** The limitation on electronic data processing equipment and related media is increased to the amount shown on the Policy Declarations.
+      
+      9. **Fire Department Charges (Coverage F):** The $500 limit on fire department service charges is increased to the amount shown on the Policy Declarations.
+      
+      10. **Loss Assessments (Coverage G):** The policy covers your share of special assessments charged by an association governing common areas, up to the limit shown on the Policy Declarations, under certain conditions.
+      
+      11. **Extended Coverage on Jewelry, Watches, and Furs (Coverage J):** Personal Property Protection—Coverage C is extended to cover sudden and accidental direct physical loss to jewelry, watches, gems, and furs, with limits shown on the Policy Declarations.
+      
+      12. **Guest Medical Protection (Coverage Y):** The policy covers reasonable expenses for necessary medical, surgical, X-ray, and dental services, among others, incurred within three years from the date of an occurrence causing bodily injury.
+      
+      Each of these coverages may have specific conditions, limits, and deductibles as detailed in the Policy Declarations.
+      
+      **What is NOT covered**
+      
+      The insurance policy contains several exclusions, limitations, and conditions that affect coverage. Here are the key points:
+      
+      1. **Water Damage Exclusions**:
+         - The policy does not cover water or any other substance that backs up through sewers or drains, overflows from a sump pump, or is on or below the surface of the ground. However, sudden and accidental direct physical loss caused by fire, explosion, or theft resulting from these conditions is covered.
+      
+      2. **Earth Movement Exclusions**:
+         - Losses caused by earth movement, such as earthquakes, landslides, or erosion, are not covered. This exclusion applies even if the earth movement is combined with water. However, sudden and accidental direct physical loss caused by fire, explosion, theft, or breakage of glass resulting from earth movement is covered.
+      
+      3. **Building Code Enforcement**:
+         - Losses due to the enforcement of building codes, ordinances, or laws regulating construction or demolition are not covered, except for sudden and accidental direct physical loss caused by actions of civil authority to prevent the spread of fire.
+      
+      4. **Failure to Preserve Property**:
+         - If an insured person fails to take reasonable steps to save and preserve property when it is endangered by a covered cause of loss, the policy does not cover the resulting loss.
+      
+      5. **Intentional or Criminal Acts**:
+         - Losses resulting from intentional or criminal acts by or at the direction of any insured person are not covered, regardless of whether the insured person is charged with or convicted of a crime.
+      
+      6. **Weather Conditions**:
+         - Losses caused by weather conditions that contribute to an excluded cause of loss are not covered.
+      
+      7. **Faulty Planning or Construction**:
+         - Losses due to faulty, inadequate, or defective planning, zoning, design, specifications, workmanship, or maintenance are not covered.
+      
+      8. **Mold, Fungus, and Rot**:
+         - Losses caused by mold, fungus, wet rot, dry rot, or bacteria are excluded, except as specifically provided for remediation as a direct result of a covered water loss.
+      
+      9. **Nuclear Action**:
+         - Losses caused by nuclear reaction, discharge, radiation, or radioactive contamination are not covered, except for sudden and accidental direct physical loss by fire resulting from nuclear action.
+      
+      10. **War and Warlike Acts**:
+          - Losses caused by war or warlike acts, including insurrection, rebellion, or revolution, are not covered.
+      
+      11. **Motorized Land Vehicles**:
+          - Motorized land vehicles and their parts are not covered, except for those designed for assisting the disabled or used solely for the service of the insured premises and not licensed for use on public roads.
+      
+      12. **Property of Roomers, Boarders, or Tenants**:
+          - Property of roomers, boarders, or tenants not related to the insured is not covered.
+      
+      These exclusions and conditions limit the circumstances under which the policy will provide coverage, and it's important to understand them to know what is not covered by the insurance policy.
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-selling-the-house] 
+=== h2-selling-the-house: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: policy changes when selling house
+    [exclusions] searched -> search_exclusions: transfer of insurance policy to buyer of house
+    [exclusions] searched -> search_exclusions: conditions for transferring insurance policy to new owner
+    [exclusions] searched -> search_exclusions: transfer of insurance policy conditions
+    ANSWER:
+      **What IS covered**
+      
+      The policy does not explicitly address what happens when you sell your house. However, it does mention that you must inform the insurer of any change in title, use, or occupancy of the residence premises. This implies that selling your house would require notifying the insurance company, as it constitutes a change in title and occupancy.
+      
+      Additionally, the policy states that you may not transfer the policy to another person without the insurer's written consent. This means that if you sell your house, the insurance policy cannot automatically be transferred to the new owner without the insurer's approval.
+      
+      In summary, when you sell your house, you should notify your insurance company about the change in ownership, and the policy cannot be transferred to the new owner without the insurer's consent.
+      
+      **What is NOT covered**
+      
+      The policy documents I reviewed do not specifically address the transfer of an insurance policy to the buyer of a house. There are no explicit exclusions or conditions mentioned regarding the transfer of the policy to a new owner. 
+      
+      Typically, insurance policies are personal contracts between the insurer and the insured, and they do not automatically transfer to a new owner without the insurer's consent. However, since the policy does not explicitly cover this scenario, it would be best to contact your insurance provider directly to discuss the possibility and any necessary steps for transferring the policy.
+    [PASS] h2-selling-the-house       ranks: #3
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h3-tip-money-for-arsonist] 
+=== h3-tip-money-for-arsonist: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: reward for information leading to a fire investigation
+    [exclusions] searched -> search_exclusions: reward for tips about fire
+    [exclusions] searched -> search_exclusions: information leading to reward
+    [exclusions] searched -> search_exclusions: reward for information about arson
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers a reward for information leading to an arson conviction. Specifically, it states that the insurer will pay up to $5,000 for information that leads to an arson conviction in connection with a fire loss to property covered under Section I of the policy. This $5,000 limit applies regardless of the number of persons providing information.
+      
+      **What is NOT covered**
+      
+      The policy does not specifically address coverage for rewards for information leading to a reward for tips about a fire set to your garage. The searches did not reveal any exclusions, limitations, or conditions related to rewards for information or tips about arson. Therefore, it appears that the policy is silent on this matter, and no specific exclusions or conditions apply to such a scenario based on the retrieved policy text.
+    [PASS] h3-tip-money-for-arsonist  ranks: #1
+PASSED
+
+====================== 7 passed, 19 deselected in 28.46s =======================

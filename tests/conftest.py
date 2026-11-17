@@ -46,6 +46,22 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+class _NeverRelevant:
+    """Default scope confirmation in unit tests: the cheap model's out_of_scope label stands."""
+
+    def invoke(self, messages):
+        from src.agents.router import ScopeCheck
+
+        return ScopeCheck(relevant=False)
+
+
+@pytest.fixture(autouse=True)
+def no_real_scope_confirmation(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    if request.node.get_closest_marker("live"):
+        return
+    monkeypatch.setattr("src.agents.router._get_confirm_llm", lambda: _NeverRelevant())
+
+
 @pytest.fixture(autouse=True)
 def no_real_vector_store(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     if request.node.get_closest_marker("live"):
