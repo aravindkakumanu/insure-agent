@@ -126,8 +126,9 @@ exactly one label:
                insurance (auto, life, health), taxes, legal or financial advice,
                or general knowledge. Use it ONLY when the question has nothing to
                do with what this policy covers, excludes or how to claim under
-               it. If the question is about the home, a loss, someone being hurt
-               or suing, your rights or deadlines under the policy (suing or
+               it. If the question is about the home, a loss, money the insurance
+               might pay in connection with a loss (including rewards, tips,
+               payments to other people), someone being hurt or suing, your rights or deadlines under the policy (suing or
                disputing the insurer, cancelling, renewing, premiums, selling the
                house or transferring the policy, what happens to the policy
                itself), or the policy itself, even if the policy may not answer it, use
@@ -153,7 +154,9 @@ Also fill in two fields about what the POLICY DOCUMENT can answer:
 
 Also rewrite the question as two STANDALONE questions, each understandable
 without the conversation, keeping every specific the user gave (the peril, the
-item, amounts) and adding no facts of your own. Resolve follow-ups using
+item, amounts) and ALSO what the user is worried about or asking for (a threat to
+sue, a request for payment, a demand), not only the event, and adding no facts of
+your own. Resolve follow-ups using
 previous_question.
   coverage_question   - asks what the policy covers for the subject, including
                         limits, sublimits and conditions

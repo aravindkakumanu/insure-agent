@@ -734,3 +734,16 @@ def test_the_outside_topic_is_a_closed_list_the_classifier_cannot_extend() -> No
     with pytest.raises(ValueError):
         router.IntentClassification(intent="coverage", outside_topic="policy_transfer")
     assert router.IntentClassification(intent="coverage").outside_topic == "none"
+
+
+def test_the_classifier_prompt_keeps_reward_and_tip_questions_in_scope() -> None:
+    """Live finding: 'does my insurance offer money for information?' (the arson reward) was refused."""
+    prompt = " ".join(router.ROUTER_PROMPT.split())
+    assert "including rewards, tips, payments to other people" in prompt
+
+
+def test_the_rewrite_keeps_what_the_user_is_worried_about_not_only_the_event() -> None:
+    """Live finding (lesson 35): 'threatening to sue me' was dropped from the rewrite, so the
+    agents searched 'slip and fall' and missed the liability passage."""
+    prompt = " ".join(router.ROUTER_PROMPT.split())
+    assert "what the user is worried about or asking for (a threat to sue" in prompt

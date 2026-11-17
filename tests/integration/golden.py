@@ -381,7 +381,7 @@ GOLDEN: tuple[GoldenCase, ...] = (
     GoldenCase(
         id="h-icy-driveway-lawsuit",
         category="H",
-        split="heldout",
+        split="dev",  # tuned against in lesson 35 (query wording): no longer unseen
         question="Someone slipped on my icy driveway and is threatening to sue me. What does my insurance do?",
         tool="search_policy",
         must_retrieve=("we will provide a defense with counsel of our choice",),
@@ -431,7 +431,7 @@ GOLDEN: tuple[GoldenCase, ...] = (
     GoldenCase(
         id="h-baseball-neighbors-window",
         category="H",
-        split="heldout",
+        split="dev",  # tuned against in lesson 35 (query wording): no longer unseen
         question="My kid threw a baseball through the neighbor's window. Am I responsible for that under my policy?",
         tool="search_policy",
         must_retrieve=("legally obligated to pay because of bodily injury or property damage arising from an occurrence",),
@@ -454,7 +454,7 @@ GOLDEN: tuple[GoldenCase, ...] = (
     GoldenCase(
         id="h-vandalized-car-in-driveway",
         category="H",
-        split="heldout",
+        split="dev",  # tuned against in lesson 35 (query wording): no longer unseen
         question="My car was parked in my driveway and someone vandalized it. Does my homeowners policy cover that or only auto insurance?",
         tool="search_exclusions",
         must_retrieve=("Motorized land vehicles, including, but not limited to, any land vehicle powered or assisted by a motor or engine",),
@@ -481,7 +481,7 @@ GOLDEN: tuple[GoldenCase, ...] = (
     GoldenCase(
         id="h2-code-upgrade-after-fire",
         category="H",
-        split="heldout",
+        split="dev",  # tuned against in lesson 35 (query wording): no longer unseen
         question="After the fire, the contractor says the wiring has to be brought up to current code, which costs extra. Will insurance pay for those upgrades?",
         tool="search_policy",
         must_retrieve=("We will pay up to 10% of the amount of insurance on the",),
@@ -493,6 +493,32 @@ GOLDEN: tuple[GoldenCase, ...] = (
         question="A storm washed out the ground under my deck and the corner of the house is sagging. Does the policy cover fixing the ground?",
         tool="search_policy",
         must_retrieve=("we will pay up to $10,000 as an additional amount of insurance for repair costs associated with the land",),
+    ),
+    # --- H, third set: written BEFORE the query-wording fix (CLAUDE.md lesson 35), not run until
+    # after it. Fresh held-out cases (ids "h3-"). Do NOT tune on them.
+    GoldenCase(
+        id="h3-friends-broken-wrist",
+        category="H",
+        split="heldout",
+        question="A friend tripped on my back steps and broke their wrist. I'd like to pay their doctor bills myself without a lawsuit. Does my policy help with that?",
+        tool="search_policy",
+        must_retrieve=("within three years from the date of an occurrence causing",),
+    ),
+    GoldenCase(
+        id="h3-bike-scratched-a-car",
+        category="H",
+        split="heldout",
+        question="My son's bike scratched a neighbor's parked car. We'd rather just pay for it than argue. Does my policy have anything for small stuff like that?",
+        tool="search_policy",
+        must_retrieve=("we will pay up to $500 each time an insured person causes property damage to someone else's property",),
+    ),
+    GoldenCase(
+        id="h3-tip-money-for-arsonist",
+        category="H",
+        split="heldout",
+        question="Someone set fire to my garage and the police want tips. Does my insurance offer any money for information?",
+        tool="search_policy",
+        must_retrieve=("We will pay up to $5,000 for information leading to an arson conviction",),
     ),
 
 )
