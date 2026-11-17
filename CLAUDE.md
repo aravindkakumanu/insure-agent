@@ -714,6 +714,22 @@ confidence) or answered from model knowledge with no search (tax).
   LLM does not know what the policy contains, so only let it assert silence for topics a
   policy document can never contain. Results: `baselines/2026-11-17-e2e-not-in-policy.md`.
 
+### 35. Query wording: find the cause upstream, and measure prompt changes across many cases
+The icy-driveway question ("... threatening to sue me") retrieved the liability section in 3 of 6
+runs. Findings (`baselines/2026-11-17-query-wording.md`, tool `tests/integration/stability.py`):
+- The router's REWRITE dropped "threatening to sue me", so the agents searched "slip and fall"
+  (the policy never mentions ice; the liability text is about being sued and bodily injury). The
+  rewrite now keeps what the user is worried about or asking for. That moved the case 0/8 -> 6/8.
+- Asking the agents for formal wording made it worse (0/6); asking for a "kind of protection, details
+  stripped" query fixed two cases and broke two others (6/6 -> 0/6) and was not even followed in
+  those: reverted. With temperature 0 the agents are deterministic per prompt, so a prompt edit
+  flips cases rather than adding noise; judge it on many cases, not on repeats of one.
+- Raw rank of the needed passage for everyday-wording queries is 4-16 while `search_policy` returns
+  4: retrieval is brittle by construction (huge chunks, lay vs legal words).
+- OPEN: `h2-selling-the-house` is routed `out_of_scope` every time by the classifier (a regression);
+  the classifier (gpt-4o-mini) carries too many jobs now (intent, two rewrites, out_of_scope,
+  outside_topic, subject). Candidates: a confirmation step before refusing, or a stronger model.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)

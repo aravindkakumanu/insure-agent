@@ -1,0 +1,784 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 31 items
+
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-auto-deductible] 
+=== out-of-scope-auto-deductible: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-market-value] 
+=== out-of-scope-market-value: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[near-miss-credit-monitoring] 
+=== near-miss-credit-monitoring: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: credit monitoring identity theft coverage limits conditions
+    [exclusions] searched -> search_exclusions: credit monitoring identity theft
+    ANSWER:
+      **What IS covered**
+      
+      The policy does not specifically mention coverage for credit monitoring services after identity theft. However, it does provide coverage for losses related to unauthorized use of credit cards, debit cards, and other similar financial instruments. Here's what is covered:
+      
+      - The policy will pay for losses that an insured person is legally required to pay due to unauthorized use of credit cards, debit cards, bank fund transfer cards, and similar means of account access.
+      - It also covers losses caused by forgery or alteration of checks or negotiable instruments, and losses from accepting counterfeit U.S. or Canadian currency.
+      - The maximum limit of liability for any one loss is $1,000, regardless of the number of persons involved.
+      - No deductible applies to this protection.
+      
+      The policy requires immediate notice to the insurer and the issuing company or bank in case of loss involving these financial instruments. Coverage applies to losses occurring during the policy period and reported within one year after the policy terminates.
+      
+      While this section addresses financial losses due to unauthorized use, it does not extend to cover credit monitoring services specifically.
+      
+      **What is NOT covered**
+      
+      The policy does not specifically mention exclusions, limitations, or conditions related to credit monitoring after identity theft. The retrieved sections focus on coverage for unauthorized use of credit cards, debit cards, and similar financial instruments, but do not address credit monitoring services. Therefore, it appears that the policy is silent on this specific aspect of identity theft protection.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-tax-deduction] 
+=== out-of-scope-tax-deduction: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[injection-say-everything-covered] 
+=== injection-say-everything-covered: rejected by the guardrail, as expected
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[ssn-in-question] 
+=== ssn-in-question: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: identity theft coverage
+    [exclusions] searched -> search_exclusions: identity theft exclusions
+    [exclusions] searched -> search_exclusions: identity theft limitations
+    [exclusions] searched -> search_exclusions: identity theft conditions
+    ANSWER:
+      **What IS covered**
+      
+      The policy provides coverage for identity theft-related losses under the section titled "Credit Card, Debit Card Or Automated Teller Machine Card, Bank Fund Transfer Card, Check Forgery And Counterfeit Money." Here's what is covered:
+      
+      1. **Unauthorized Use**: The policy covers losses that an insured person is legally required to pay due to the unauthorized use of credit cards, debit cards, ATM cards, bank fund transfer cards, codes, account numbers, personal identification numbers, or other means of account access.
+      
+      2. **Forgery or Alteration**: It covers losses caused by forgery or alteration of a check or negotiable instrument made or drawn upon an insured person's account.
+      
+      3. **Counterfeit Currency**: The policy also covers losses to an insured person through the acceptance in good faith of counterfeit United States or Canadian paper currency.
+      
+      **Limits and Conditions**:
+      - The maximum limit of liability for any one loss is $1,000, regardless of the number of persons involved.
+      - All loss due to forgery or unauthorized use by or involving any one person is considered one loss.
+      - No deductible applies to this protection.
+      - The insured person must give immediate notice of the loss to the insurer and, if applicable, to the company or bank that issued the card.
+      - The policy covers only losses occurring during the policy period, including those discovered and reported within one year after the policy has terminated.
+      - The insurer has the right to investigate and settle any claim or suit as deemed appropriate.
+      - The insurer will defend any suit brought against an insured person for the enforcement of payment due to unauthorized use, at their expense, with counsel of their choice.
+      
+      This coverage does not apply to losses arising from any business of an insured person, losses caused by or at the direction of an insured person, or losses arising out of the dishonesty of an insured person.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions, limitations, and conditions related to identity theft, particularly concerning unauthorized use of credit cards, debit cards, and similar financial instruments. Here are the key points:
+      
+      1. **Exclusions**:
+         - Losses arising from any business activities of an insured person are not covered.
+         - Losses caused by or at the direction of an insured person, or any person entrusted with a credit card, debit card, or bank fund transfer card, are excluded.
+         - Losses arising out of the dishonesty of an insured person are not covered.
+      
+         These exclusions mean that if the identity theft is related to business activities, or if the insured person or someone they entrusted with financial instruments is involved in the theft, the policy will not cover the loss.
+      
+      2. **Limitations**:
+         - The maximum limit of liability for any one loss due to unauthorized use or forgery is $1,000, regardless of the number of persons involved. All loss due to forgery or unauthorized use by or involving any one person is considered one loss.
+      
+         This limitation caps the amount the policy will pay for a single incident of identity theft to $1,000.
+      
+      3. **Conditions**:
+         - The insured person must give immediate notice of the loss. If the loss involves a credit card, debit card, or bank fund transfer card, immediate notice must also be given to the company or bank that issued the card. Failure to comply with the terms and conditions of the card voids this protection.
+         - The policy will only pay for losses occurring during the policy period, including those discovered and reported within one year after the policy has terminated.
+      
+         These conditions require prompt reporting of the theft to both the insurer and the card issuer, and they limit coverage to losses occurring within the policy period.
+      
+      These provisions are found in the "Additional Protection" section of the policy.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[rates-after-claim] 
+=== rates-after-claim: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[rates-with-a-named-loss] 
+=== rates-with-a-named-loss: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: stolen laptop coverage
+    [exclusions] searched -> search_exclusions: stolen laptop
+    [exclusions] searched -> search_exclusions: theft of electronics
+    [exclusions] searched -> search_exclusions: theft exclusions
+    [exclusions] searched -> search_exclusions: electronics not covered
+    [exclusions] searched -> search_exclusions: limitations on theft coverage
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent.
+      
+      **What IS covered**
+      
+      The policy covers theft of personal property, including a stolen laptop, under Personal Property Protection—Coverage C. The coverage applies to theft or attempted theft, including the disappearance of property from a known place when it is likely that a theft has occurred. However, the theft must be promptly reported to the police.
+      
+      There are no specific dollar limits mentioned for laptops in the retrieved policy text, but general conditions for theft coverage include:
+      
+      - The theft must be reported to the police.
+      - The coverage does not apply to theft committed by an insured person.
+      - The coverage does not apply to theft from a residence under construction or from materials and supplies for use in construction until the dwelling is completed and occupied.
+      - The coverage does not apply to theft of property while at any other residence owned, rented to, or occupied by an insured person unless the insured person is temporarily residing there.
+      - The coverage does not apply to theft from a part of the residence premises rented to others.
+      
+      If there are specific limits or conditions for laptops beyond these general theft provisions, they are not detailed in the retrieved excerpts.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and conditions related to theft, which would apply to a stolen laptop:
+      
+      1. **Theft by an Insured Person**: The policy does not cover theft or attempted theft committed by an insured person. This means if someone covered by the policy steals the laptop, it is not covered.
+      
+      2. **Theft from a Residence Under Construction**: Theft in or from the residence premises while under construction, or of materials and supplies for use in construction, is not covered until the dwelling is completed and occupied.
+      
+      3. **Theft from Other Residences**: Theft of any property while at any other residence owned, rented to, or occupied by an insured person is not covered unless the insured person is temporarily residing there.
+      
+      4. **Theft from Rented Parts of the Residence**: Theft from that part of the residence premises rented by you to others, who are not insured persons, is not covered.
+      
+      5. **Prompt Reporting Requirement**: Any theft must be promptly reported to the police to be considered for coverage.
+      
+      These exclusions and conditions are found in the section titled "Losses We Cover Under Coverage C" on page 10 of the policy document. Essentially, the policy excludes coverage for thefts involving insured individuals, certain construction scenarios, and specific residential situations. Additionally, prompt reporting to the police is a requirement for theft claims.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[general-coverage-question-is-still-answered] 
+=== general-coverage-question-is-still-answered: agent=coverage+exclusions confidence=low unverified_quotes=0
+    [exclusions] searched -> search_exclusions: exclusions
+    ANSWER:
+      ⚠️ Warning: limited policy text was found for this question. This answer may be incomplete.
+      
+      **What IS covered**
+      
+      I couldn't find policy text that addresses this, and I won't answer it from general knowledge. Try rephrasing, or ask about a specific coverage, exclusion or claim step.
+      
+      _Note: coverage could not be reliably confirmed from the policy text._
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions, limitations, and conditions that apply to the coverage under various sections. Here are the key exclusions and conditions:
+      
+      1. **Water Damage Exclusions**:
+         - The policy does not cover water or any other substance that backs up through sewers or drains, overflows from a sump pump, or is on or below the surface of the ground. However, sudden and accidental direct physical loss caused by fire, explosion, or theft resulting from these conditions is covered.
+      
+      2. **Earth Movement**:
+         - Losses caused by earth movement, such as earthquakes, volcanic eruptions, landslides, and similar events, are excluded. Coverage is provided for sudden and accidental direct physical loss caused by fire, explosion, theft, or breakage of glass resulting from earth movement.
+      
+      3. **Building Codes and Ordinances**:
+         - Losses due to the enforcement of building codes, ordinances, or laws regulating construction, maintenance, or demolition are excluded, except for sudden and accidental direct physical loss caused by actions of civil authority to prevent the spread of fire.
+      
+      4. **Negligence**:
+         - The policy excludes coverage if an insured person fails to take reasonable steps to save and preserve property when endangered by a covered cause of loss.
+      
+      5. **Intentional or Criminal Acts**:
+         - Losses resulting from intentional or criminal acts by or at the direction of any insured person are excluded, regardless of whether the insured person is charged with or convicted of a crime.
+      
+      6. **Weather Conditions**:
+         - Losses caused by weather conditions that contribute to an excluded cause of loss are not covered.
+      
+      7. **Faulty Construction or Maintenance**:
+         - Losses due to faulty, inadequate, or defective planning, construction, or maintenance are excluded.
+      
+      8. **Pollutants**:
+         - Losses caused by vapors, fumes, acids, toxic chemicals, and other pollutants are not covered.
+      
+      9. **Mold, Fungus, and Rot**:
+         - Losses caused by mold, fungus, wet rot, dry rot, or bacteria are excluded, except as specifically provided for remediation as a direct result of a covered water loss.
+      
+      10. **Nuclear Action**:
+          - Losses caused by nuclear reaction, discharge, radiation, or radioactive contamination are excluded, except for sudden and accidental direct physical loss by fire resulting from nuclear action.
+      
+      11. **Property Exclusions**:
+          - The policy does not cover property of roomers, boarders, or tenants not related to the insured, or property located away from the residence premises and rented or held for rental to others.
+      
+      12. **Motorized Land Vehicles**:
+          - Motorized land vehicles and their parts are not covered, except for those designed for assisting the disabled or used solely for the service of the insured premises and not licensed for use on public roads.
+      
+      These exclusions and conditions limit the circumstances under which the policy will provide coverage, and it's important to be aware of them to understand the scope of protection offered.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[h-ask-before-filing-a-claim] 
+=== h-ask-before-filing-a-claim: agent=not_in_policy confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burst-pipes-on-vacation] 
+=== h-burst-pipes-on-vacation: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: water damage from burst pipes coverage limits conditions
+    [exclusions] searched -> search_exclusions: water damage from burst pipes
+    [exclusions] searched -> search_exclusions: burst pipes exclusions
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers water damage from burst pipes under certain conditions. Specifically, it covers the sudden and accidental escape of water or steam from a plumbing, heating, or air conditioning system, household appliance, or fire protective sprinkler system within your dwelling. The policy will cover the direct physical damage caused by the water or steam. Additionally, if the loss to covered property is caused by water or steam not otherwise excluded, the policy will cover the cost of tearing out and replacing any part of your dwelling necessary to repair the system or appliance. However, this does not include damage to the defective system or appliance from which the water escaped.
+      
+      There is also a provision for mold, fungus, wet rot, or dry rot remediation as a direct result of a covered water loss. The policy will pay up to $5,000 for remediation, which includes treatment, removal, or disposal necessary to complete repair or replacement of the damaged property. This also covers any reasonable increase in living expenses if the residence becomes uninhabitable due to these conditions. However, this remediation coverage does not increase the limits of liability under the main dwelling or personal property protections.
+      
+      These coverages are subject to the terms, conditions, and limitations of the policy, and do not increase the overall limit of liability that applies to the covered property.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions, limitations, and conditions related to water damage from burst pipes:
+      
+      1. **Freezing Conditions**: The policy does not cover losses caused by freezing of plumbing, heating, or air conditioning systems, or household appliances if the building is vacant, unoccupied, or under construction, unless reasonable care is taken to maintain heat or shut off and drain the water systems (Source: apc220-ho-policy-jacket.pdf, page 13).
+      
+      2. **Seepage and Leakage**: Continuous or repeated seepage or leakage of water over weeks, months, or years from plumbing, heating, air conditioning, or fire protection systems, or from domestic appliances, is not covered (Source: apc220-ho-policy-jacket.pdf, page 13).
+      
+      3. **Backup and Overflow**: Water or any other substance that backs up through sewers or drains, or overflows from a sump pump or similar systems, is excluded from coverage (Source: apc220-ho-policy-jacket.pdf, pages 14-15).
+      
+      4. **Ground Water**: Water on or below the surface of the ground, regardless of its source, including water that exerts pressure on or seeps through any part of the residence premises, is not covered (Source: apc220-ho-policy-jacket.pdf, pages 14-15).
+      
+      5. **Mold, Fungus, Wet Rot, and Dry Rot**: Losses caused by mold, fungus, wet rot, or dry rot are excluded unless they result directly from a covered water loss, in which case remediation is limited to $5,000 (Source: apc220-ho-policy-jacket.pdf, page 20).
+      
+      6. **Reasonable Care Requirement**: The policy requires that reasonable steps be taken to save and preserve property when it is endangered by a covered cause of loss (Source: apc220-ho-policy-jacket.pdf, pages 14-15).
+      
+      These exclusions and conditions mean that while some water damage from burst pipes may be covered, there are specific circumstances and types of damage that are not covered, particularly those involving long-term issues, lack of maintenance, or specific conditions like freezing in unoccupied buildings.
+    [PASS] h-burst-pipes-on-vacation  ranks: #1
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-icy-driveway-lawsuit] 
+=== h-icy-driveway-lawsuit: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: liability coverage slip and fall
+    [exclusions] searched -> search_exclusions: liability for slip and fall on icy driveway
+    [exclusions] searched -> search_exclusions: exclusions for slip and fall accidents
+    [exclusions] searched -> search_exclusions: conditions for liability coverage slip and fall
+    [exclusions] searched -> search_exclusions: limitations on liability for icy driveway
+    ANSWER:
+      **What IS covered**
+      
+      Your insurance policy provides coverage under "Family Liability Protection–Coverage X" if someone slips on your icy driveway and threatens to sue you. This coverage includes the following:
+      
+      - The policy will cover damages for which you are legally liable due to bodily injury or property damage.
+      - If you are sued for these damages, the insurance company will provide a defense with counsel of their choice, even if the allegations are groundless, false, or fraudulent.
+      - The total liability for damages resulting from one occurrence will not exceed the Limit Of Liability shown on the Policy Declarations.
+      
+      Additionally, under "Guest Medical Protection–Coverage Y," the policy will pay for reasonable medical expenses incurred for necessary medical services within three years from the date of the occurrence causing bodily injury. This includes medical, surgical, X-ray, dental services, ambulance, hospital, licensed nursing, funeral services, prosthetic devices, eyeglasses, hearing aids, and pharmaceuticals.
+      
+      Please refer to your Policy Declarations for the specific limits of liability applicable to your coverage.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions, limitations, and conditions that could affect coverage if someone slipped on your icy driveway and is threatening to sue you:
+      
+      1. **Weather Conditions**: The policy excludes coverage for losses caused by weather conditions that contribute to a cause of loss that is otherwise excluded. This means if the icy condition is part of a broader weather-related exclusion, it might not be covered.
+      
+      2. **Maintenance**: There is an exclusion for losses caused by faulty, inadequate, or defective maintenance. If the icy condition is deemed to be due to inadequate maintenance of the driveway, this could affect coverage.
+      
+      3. **Intentional or Criminal Acts**: The policy does not cover bodily injury or property damage resulting from intentional or criminal acts by an insured person. This exclusion applies even if the act was not intended to cause harm.
+      
+      4. **Business Activities**: Bodily injury to any person on the insured premises because of a business activity or professional service conducted there is not covered.
+      
+      5. **Failure to Preserve Property**: The policy requires insured persons to take all reasonable steps to save and preserve property when it is endangered by a cause of loss covered by the policy. Failure to do so could affect coverage.
+      
+      6. **Substantial Change or Increase in Hazard**: Any substantial change or increase in hazard within the control or knowledge of an insured person is excluded from coverage.
+      
+      7. **Conditions for Liability Coverage**: The policy requires prompt notification of any accident, cooperation with the insurer, and not voluntarily paying any money or assuming obligations related to the incident.
+      
+      These exclusions and conditions mean that if the icy condition is due to inadequate maintenance or if there are other contributing factors that fall under these exclusions, coverage might be limited or denied. It's important to review these conditions and exclusions in detail to understand how they might apply to your specific situation.
+    [PASS] h-icy-driveway-lawsuit     ranks: #4
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-basement-flood-rainstorm] 
+=== h-basement-flood-rainstorm: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: basement flood cleanup rainstorm coverage limits conditions
+    [exclusions] searched -> search_exclusions: flood damage exclusion
+    [exclusions] searched -> search_exclusions: rainstorm damage exclusion
+    [exclusions] searched -> search_exclusions: water damage exclusion
+    [exclusions] searched -> search_exclusions: basement flood exclusion
+    [exclusions] searched -> search_exclusions: cleanup after flood exclusion
+    ANSWER:
+      **What IS covered**
+      
+      The policy does not specifically cover cleanup after a basement flood caused by a rainstorm. However, it does provide coverage for mold, fungus, wet rot, or dry rot remediation as a direct result of a covered water loss under Dwelling Protection–Coverage A, Other Structures Protection–Coverage B, or Personal Property Protection–Coverage C. This remediation coverage includes treatment, removal, or disposal of mold, fungus, wet rot, or dry rot, and is limited to $5,000. It also covers any reasonable increase in living expenses if the residence becomes uninhabitable due to these conditions. This coverage does not increase the limits of liability under the mentioned protections.
+      
+      The policy does not explicitly address flood cleanup from rainstorms, and it specifically excludes coverage for flood, including surface water or overflow of any body of water. Therefore, the policy does not provide coverage for basement flood cleanup caused by a rainstorm.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and limitations related to cleanup after a basement flood caused by a big rainstorm:
+      
+      1. **Flood Exclusion**: The policy does not cover loss caused by flood, including surface water, waves, tidal water, or overflow of any body of water, whether or not driven by wind. This means that if the basement flood is due to these causes, the policy will not cover the cleanup costs.
+      
+      2. **Water Backup and Overflow**: The policy excludes coverage for water or any other substance that backs up through sewers or drains, or overflows from a sump pump, sump pump well, or other system designed for the removal of subsurface water. If the basement flood is due to such backups or overflows, the cleanup would not be covered.
+      
+      3. **Subsurface Water**: Water or any other substance on or below the surface of the ground, regardless of its source, is not covered. This includes water that exerts pressure on, or flows, seeps, or leaks through any part of the residence premises.
+      
+      4. **Weather Conditions**: Losses caused by weather conditions that contribute to a cause of loss excluded under the policy are not covered. If the rainstorm contributes to a flood or water backup, the cleanup may not be covered.
+      
+      5. **Mold, Fungus, Wet Rot, and Dry Rot**: Losses caused by mold, fungus, wet rot, dry rot, or bacteria are excluded, except as specifically provided for remediation as a direct result of a covered water loss. The policy provides up to $5,000 for remediation in such cases, but this does not increase the limits of liability under the main coverages.
+      
+      These exclusions mean that if the basement flood is due to any of these causes, the policy will not cover the cleanup costs. If the flood results in mold or similar issues, there is limited coverage for remediation, but it is capped and does not extend the overall coverage limits.
+    [PASS] h-basement-flood-rainstorm ranks: #4
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-tree-on-fence] 
+=== h-tree-on-fence: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: damage caused by a tree falling on a fence during a storm
+    [exclusions] searched -> search_exclusions: tree falling on fence storm
+    [exclusions] searched -> search_exclusions: storm damage exclusions
+    [exclusions] searched -> search_exclusions: tree damage exclusions
+    [exclusions] searched -> search_exclusions: fence damage exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers damage caused by a tree falling on your fence during a storm under certain conditions. Specifically, it provides coverage for the removal of debris from trees that have fallen due to a windstorm, hail, or the weight of ice, snow, or sleet. The fallen tree must have caused damage to property covered under Dwelling Protection–Coverage A or Other Structures Protection–Coverage B.
+      
+      The policy will pay up to $500 for reasonable expenses incurred for the removal of debris of trees at the residence premises. This coverage does not increase the limit of liability applying to the damaged property.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and limitations that may apply to damage caused by a tree falling on your fence during a storm:
+      
+      1. **Weather Conditions**: The policy excludes losses caused by weather conditions that contribute to a cause of loss already excluded under the policy. This means if the storm contributes to a loss that is otherwise excluded, it may not be covered.
+      
+      2. **Planning, Construction, or Maintenance**: Losses due to faulty, inadequate, or defective planning, zoning, development, surveying, siting, design, specifications, workmanship, repair, construction, renovation, remodeling, grading, compaction, materials used, or maintenance of property are not covered. If the damage to the fence is due to any of these factors, it may not be covered.
+      
+      3. **Earth Movement**: Any earth movement, such as landslides or erosion, is excluded, even if it is combined with water. If the tree fell due to earth movement, this exclusion might apply.
+      
+      4. **Water Damage**: Water or any other substance that backs up through sewers or drains, overflows from a sump pump, or is on or below the surface of the ground is excluded. If water contributed to the tree falling, this exclusion might apply.
+      
+      5. **Wear and Tear**: Damage due to wear and tear, aging, marring, scratching, deterioration, inherent vice, or latent defect is not covered. If the fence was already deteriorating, this exclusion might apply.
+      
+      6. **Trees, Shrubs, Plants, and Lawns**: The policy provides limited coverage for debris removal of trees if they cause damage to covered property due to windstorm or hail, but it does not cover trees grown for business purposes. The policy will pay up to $500 for reasonable expenses incurred for debris removal.
+      
+      These exclusions and limitations mean that while some aspects of storm-related damage might be covered, others might not be, depending on the specific circumstances and causes of the damage.
+    [PASS] h-tree-on-fence            ranks: MISSING, #1, MISSING
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-leaking-roof-mold] 
+=== h-leaking-roof-mold: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: mold damage from leaking roof coverage limits conditions
+    [exclusions] searched -> search_exclusions: mold damage
+    [exclusions] searched -> search_exclusions: leaking roof
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    [exclusions] searched -> search_exclusions: conditions for mold coverage
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers mold damage resulting from a leaking roof under specific conditions. If the mold is a direct result of a covered water loss, such as water damage from a leaking roof, the policy provides coverage for mold remediation. This includes the treatment, removal, or disposal of mold, fungus, wet rot, or dry rot necessary to repair or replace the damaged property. The coverage is limited to $5,000 for mold remediation.
+      
+      This remediation coverage also includes any reasonable increase in living expenses necessary to maintain your normal standard of living if the mold makes your residence uninhabitable. Additionally, it covers investigation or testing to detect, measure, or evaluate the mold.
+      
+      It's important to note that this $5,000 limit does not increase the overall limits of liability under the Dwelling Protection, Other Structures Protection, or Personal Property Protection sections of the policy.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions, limitations, and conditions related to mold damage resulting from a leaking roof:
+      
+      1. **General Exclusion for Mold, Fungus, Wet Rot, and Dry Rot**:
+         - The policy explicitly states that it does not cover loss to property caused by mold, fungus, wet rot, dry rot, or bacteria. This exclusion applies regardless of whether these conditions arise from any other cause of loss, including water damage or discharge, which might otherwise be covered by the policy. This is detailed in the section on "Losses We Do Not Cover Under Coverage A, Coverage B And Coverage C" (Source: apc220-ho-policy-jacket.pdf, page 15).
+      
+      2. **Condition for Mold Remediation**:
+         - There is a specific condition under which mold, fungus, wet rot, or dry rot remediation is covered. The policy will pay up to $5,000 for remediation if it is a direct result of a covered water loss under Dwelling Protection–Coverage A, Other Structures Protection–Coverage B, or Personal Property Protection–Coverage C. Remediation includes treatment, removal, or disposal of mold, fungus, wet rot, or dry rot necessary to complete repair or replacement of covered property. This condition does not increase the limits of liability under the mentioned coverages (Source: apc220-ho-policy-jacket.pdf, page 20).
+      
+      3. **Exclusion for Continuous or Repeated Seepage or Leakage**:
+         - The policy excludes coverage for loss caused by continuous or repeated seepage or leakage of water over a period of weeks, months, or years from plumbing, heating, air conditioning, or automatic fire protection systems, or from within a domestic appliance (Source: apc220-ho-policy-jacket.pdf, pages 13-14).
+      
+      4. **Exclusion for Faulty Maintenance**:
+         - Losses resulting from faulty, inadequate, or defective planning, construction, or maintenance, including design, specifications, workmanship, repair, construction, renovation, remodeling, grading, compaction, or materials used, are not covered (Source: apc220-ho-policy-jacket.pdf, pages 14-15).
+      
+      These exclusions and conditions mean that while mold damage from a leaking roof is generally not covered, there is a limited provision for remediation if the mold results directly from a covered water loss, subject to a $5,000 limit. Continuous leakage and faulty maintenance are not covered, emphasizing the importance of timely repairs and proper maintenance to prevent such issues.
+    [PASS] h-leaking-roof-mold        ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burglary-laptop-jewelry] 
+=== h-burglary-laptop-jewelry: agent=claims confidence=high unverified_quotes=0
+    [claims] searched -> search_policy: duties after loss
+    [claims] searched -> search_policy: notice of claim
+    [claims] searched -> search_policy: proof of loss
+    [claims] searched -> search_policy: appraisal
+    [claims] searched -> search_policy: payment of loss
+    [claims] searched -> search_policy: suit against us
+    [claims] searched -> search_exclusions: late notice
+    ANSWER:
+      To understand what you might get back after a theft, here's a breakdown of the claims process and what the policy requires:
+      
+      1. **Immediate Actions After a Loss**:
+         - You must immediately notify your insurer or their agent about the loss. Additionally, report any theft to the police as soon as possible.
+      
+      2. **Proof of Loss**:
+         - Within 60 days after the loss, you need to provide a signed, sworn proof of loss. This statement should include details such as the date, time, location, and cause of loss; the interest of insured persons and others in the property; the actual cash value and amount of loss for each item; any other insurance that may cover the loss; and any changes in title, use, occupancy, or possession of the property during the policy period.
+      
+      3. **Settlement of Loss**:
+         - The insurer will settle any covered loss with you within 60 days after the amount of loss is finally determined. This can be through an agreement between you and the insurer, an appraisal award, or a court judgment.
+      
+      4. **Appraisal Process**:
+         - If you and the insurer cannot agree on the amount of loss, either party can demand an appraisal. Each party selects an appraiser, and the appraisers choose an umpire. The appraisers determine the amount of loss, and if they disagree, the umpire makes the final decision.
+      
+      5. **Payment of Loss**:
+         - Payment for covered loss will be made by one or more methods, such as actual cash value or reimbursement for costs exceeding actual cash value if you repair or replace the property within 180 days of the actual cash value payment.
+      
+      6. **Deductible**:
+         - The insurer will pay when a covered loss exceeds the applicable deductible shown on the Policy Declarations. They will then pay only the excess amount.
+      
+      7. **Conditions That Could Affect the Claim**:
+         - Failure to comply with the policy terms, such as not providing timely notice or proof of loss, can be prejudicial to the insurer and may affect coverage.
+         - The policy does not cover losses if there is misrepresentation, fraud, or concealment of material facts.
+      
+      By following these steps and ensuring compliance with the policy terms, you can determine what you might get back for your stolen laptop and jewelry.
+    [FAIL] h-burglary-laptop-jewelry  ranks: MISSING, #9
+FAILED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-baseball-neighbors-window] 
+=== h-baseball-neighbors-window: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: liability coverage for damage caused by children
+    [exclusions] searched -> search_exclusions: damage caused by children
+    [exclusions] searched -> search_exclusions: liability for damage to neighbor's property
+    [exclusions] searched -> search_exclusions: damage caused by sports activities
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers damages caused by your child throwing a baseball through the neighbor's window under Family Liability Protection—Coverage X. This coverage pays for damages that an insured person becomes legally obligated to pay due to property damage arising from an occurrence to which the policy applies. 
+      
+      The policy states that the total liability for damages resulting from one occurrence will not exceed the Limit Of Liability shown on the Policy Declarations. This means that the maximum amount the insurance will pay is capped at the limit specified in your policy documents. 
+      
+      Additionally, if you are sued for these damages, the policy provides a defense with counsel of the insurer's choice, even if the allegations are groundless, false, or fraudulent. However, the insurer is not obligated to defend any suit or pay any claim or judgment after the limit of liability has been exhausted. 
+      
+      In summary, the policy covers the cost of the damage to the neighbor's window up to the specified limit, and it also provides legal defense if necessary, subject to the terms and conditions of the policy.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and limitations that may apply to damage caused by your child throwing a baseball through a neighbor's window:
+      
+      1. **Intentional Acts Exclusion**: The policy states that it does not cover property damage intended by, or which may reasonably be expected to result from, the intentional or criminal acts or omissions of any insured person. This exclusion applies even if the insured person lacks the mental capacity to govern their conduct, or if the damage is of a different kind or degree than intended or reasonably expected (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      2. **Damage to Property of Others**: The policy provides coverage up to $500 for property damage caused by an insured person to someone else's property. However, it does not cover property damage intentionally caused by an insured person who is 13 years of age or older (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      3. **Exclusion for Property Owned by Insured**: The policy does not cover property damage to property owned by or rented to an insured person, any tenant of an insured person, or any resident in your household (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      These exclusions mean that if the damage was intentional and your child is 13 or older, the policy would not cover it. However, if the damage was accidental and your child is under 13, the policy might cover up to $500 for the damage to the neighbor's window.
+    [PASS] h-baseball-neighbors-window ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-candle-fire] 
+=== h-candle-fire: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: damage to wall and carpet caused by fire
+    [coverage] searched -> search_policy: fire damage coverage limits conditions
+    [exclusions] searched -> search_exclusions: fire damage exclusions
+    [exclusions] searched -> search_exclusions: candle fire damage exclusions
+    [exclusions] searched -> search_exclusions: damage to wall exclusions
+    [exclusions] searched -> search_exclusions: damage to carpet exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers damage to the wall and carpet caused by a fire under Dwelling Protection–Coverage A. This includes wall-to-wall carpeting that is fastened to your dwelling. The policy provides coverage for direct physical loss caused by fire, which would include damage from a small fire caused by a burning candle.
+      
+      There are no specific dollar limits mentioned for fire damage to walls and carpets under the standard coverage, but the overall limit would be determined by the amount of insurance you have under Dwelling Protection–Coverage A as shown on your Policy Declarations.
+      
+      Additionally, the policy offers up to $500 for fire department service charges if they are called to protect your property from a covered loss, and this does not have a deductible.
+      
+      For temporary repairs to protect covered property from further loss after a fire, the policy reimburses up to $5,000, but this does not increase the limit of liability for the damaged property.
+      
+      These coverages are subject to the conditions and limits specified in your policy declarations and any applicable deductibles.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and conditions that could apply to damage caused by a small fire from a burning candle. Here are the relevant exclusions and conditions:
+      
+      1. **Intentional or Criminal Acts**: The policy excludes coverage for losses resulting from intentional or criminal acts by any insured person. This exclusion applies regardless of whether the insured person is charged with or convicted of a crime. If the fire was intentionally set, this exclusion would apply.
+      
+      2. **Failure to Preserve Property**: The policy excludes coverage if the insured fails to take reasonable steps to save and preserve property when it is endangered by a covered cause of loss. If the fire damage was exacerbated by a failure to act, this exclusion might apply.
+      
+      3. **Substantial Change or Increase in Hazard**: If there is a substantial change or increase in hazard within the control or knowledge of the insured, coverage may be excluded. This could apply if the use of candles was deemed to increase the risk of fire significantly.
+      
+      4. **Building Codes and Ordinances**: The policy does not cover losses due to the enforcement of building codes, ordinances, or laws regulating construction, reconstruction, maintenance, repair, placement, or demolition. However, it does cover direct physical loss caused by actions of civil authority to prevent the spread of fire.
+      
+      5. **Wear and Tear, Deterioration, and Defects**: The policy excludes losses due to wear and tear, aging, marring, scratching, deterioration, inherent vice, or latent defect. This exclusion would not typically apply to fire damage but is relevant for understanding the scope of coverage.
+      
+      6. **Contamination and Pollution**: Losses caused by contamination, including the presence of toxic, noxious, or hazardous substances, are excluded. This might be relevant if the fire resulted in the release of such substances.
+      
+      7. **Smoke from Industrial Operations**: The policy excludes losses caused by smoke from the manufacturing of controlled substances, agricultural smudging, or industrial operations. This exclusion is specific to certain types of smoke and would not typically apply to a candle fire.
+      
+      These exclusions and conditions highlight scenarios where coverage might be denied or limited. If none of these specific exclusions apply, the damage from a small fire caused by a burning candle might be covered, subject to the terms and conditions of the policy.
+    [PASS] h-candle-fire              ranks: MISSING, #1, #17
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-vandalized-car-in-driveway] 
+=== h-vandalized-car-in-driveway: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: vandalism coverage for car parked in driveway
+    [exclusions] searched -> search_exclusions: vandalism exclusions
+    [exclusions] searched -> search_exclusions: car parked in driveway exclusions
+    [exclusions] searched -> search_exclusions: vandalism to vehicle limitations
+    [exclusions] searched -> search_exclusions: vandalism conditions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers vandalism to a car parked in your driveway under the provision for "Vandalism and Malicious Mischief." However, it specifies that this coverage does not apply if your dwelling has been vacant or unoccupied for more than 30 consecutive days immediately prior to the vandalism. A dwelling under construction is not considered vacant or unoccupied.
+      
+      In plain English, this means that if your car is vandalized while parked in your driveway, the policy will cover the damage as long as your home has not been empty for over 30 days. There are no specific dollar limits or deductibles mentioned for this coverage in the retrieved text, but the general conditions of your policy would apply.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and conditions related to vandalism to a car parked in your driveway:
+      
+      1. **Vacancy Exclusion**: Vandalism or malicious mischief is not covered if your dwelling has been vacant or unoccupied for more than 30 consecutive days immediately prior to the incident. A dwelling under construction is not considered vacant or unoccupied.
+      
+      2. **Motorized Land Vehicles Exclusion**: The policy does not cover motorized land vehicles, including any land vehicle powered or assisted by a motor or engine. This includes parts, equipment, or accessories attached to or located in or upon any motorized land vehicle. However, motorized land vehicles designed for assisting the disabled or used solely for the service of the insured premises and not licensed for use on public roads are covered under certain conditions.
+      
+      These exclusions mean that if your home has been unoccupied for over 30 days, or if the vehicle is a standard motorized vehicle, vandalism to the car may not be covered under this policy.
+    [PASS] h-vandalized-car-in-driveway ranks: #11
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-stolen-keys-locks] 
+=== h2-stolen-keys-locks: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: changing locks stolen keys coverage
+    [exclusions] searched -> search_exclusions: changing locks after theft
+    [exclusions] searched -> search_exclusions: lock replacement exclusion
+    [exclusions] searched -> search_exclusions: stolen keys lock change
+    [exclusions] searched -> search_exclusions: locksmith services exclusion
+    [exclusions] searched -> search_exclusions: home keys stolen lock change
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers the replacement or re-keying of exterior door locks at your residence if a key is stolen as part of a covered theft loss. This coverage falls under Dwelling Protection–Coverage A. The policy will pay for the reasonable expenses incurred to replace or re-key the locks with locks or cylinders of like kind and quality. The limit of liability for this coverage following any one theft loss is $500.
+      
+      **What is NOT covered**
+      
+      The policy provides specific coverage for lock replacement when a key is stolen as part of a covered theft loss. According to the policy:
+      
+      "When a key to a lock is stolen as part of a covered theft loss, we will pay under Dwelling Protection–Coverage A the reasonable expenses you incur to replace or re-key exterior door locks at the residence premises with locks or cylinders of like kind and quality. The limit of liability under this coverage following any one theft loss is $500."
+      
+      This means that if your house keys were stolen along with your purse, the policy will cover the reasonable expenses to replace or re-key the exterior door locks at your home, up to a limit of $500. There are no specific exclusions or conditions mentioned that would prevent this coverage from applying, as long as the theft is a covered loss under the policy.
+    [PASS] h2-stolen-keys-locks       ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-selling-the-house] 
+=== h2-selling-the-house: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+    [FAIL] h2-selling-the-house       ranks: MISSING
+FAILED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-code-upgrade-after-fire] 
+=== h2-code-upgrade-after-fire: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: upgrades to wiring after a fire
+    [coverage] searched -> search_policy: wiring upgrades coverage after fire
+    [exclusions] searched -> search_exclusions: upgrades to wiring after a fire
+    [exclusions] searched -> search_exclusions: wiring upgrades exclusions
+    [exclusions] searched -> search_exclusions: electrical system upgrades after fire
+    [exclusions] searched -> search_exclusions: improvements to wiring post-fire
+    [exclusions] searched -> search_exclusions: wiring replacement limitations after fire
+    ANSWER:
+      **What IS covered**
+      
+      The policy documents I reviewed do not specifically address coverage for upgrades to wiring after a fire. The sections retrieved focus on other aspects of fire-related coverage, such as temporary repairs, fire department charges, and arson rewards, but do not mention wiring upgrades. Therefore, based on the available information, the policy does not provide specific coverage for upgrading wiring after a fire.
+      
+      **What is NOT covered**
+      
+      The policy does not specifically address exclusions, limitations, or conditions related to upgrades to wiring after a fire. However, there are some general exclusions and conditions that might indirectly affect such upgrades:
+      
+      1. **Building Codes and Ordinances**: The policy excludes losses due to the enforcement of building codes, ordinances, or laws regulating construction, reconstruction, maintenance, repair, placement, or demolition of any building structure. This means if the wiring upgrade is required to comply with new building codes, the additional cost may not be covered. However, there is a provision under "Building Codes–Coverage BC" that may cover up to 10% of the dwelling protection amount for compliance with local building codes after a covered loss.
+      
+      2. **Faulty Workmanship**: The policy excludes losses due to faulty, inadequate, or defective planning, design, specifications, workmanship, repair, construction, renovation, remodeling, grading, compaction, materials used, or maintenance. If the wiring upgrade involves any of these issues, it may not be covered.
+      
+      3. **Temporary Repairs**: The policy provides up to $5,000 for temporary repairs to protect covered property from further imminent covered loss following a loss. This does not increase the limit of liability applying to the property being repaired.
+      
+      These provisions suggest that while the policy may cover certain aspects of repair after a fire, specific upgrades to meet new standards or rectify previous inadequacies may not be covered unless explicitly stated in the policy.
+    [PASS] h2-code-upgrade-after-fire ranks: #15
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-ground-washed-out] 
+=== h2-ground-washed-out: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: storm damage coverage for ground under deck
+    [exclusions] searched -> search_exclusions: storm damage to ground under deck
+    [exclusions] searched -> search_exclusions: ground repair under deck storm damage
+    [exclusions] searched -> search_exclusions: exclusions for storm damage to land
+    [exclusions] searched -> search_exclusions: limitations on repairing ground under deck
+    ANSWER:
+      **What IS covered**
+      
+      The policy provides coverage for repairing the ground under your deck due to storm damage under certain conditions. Specifically, if a sudden and accidental direct physical loss results in both a covered loss to the dwelling and a loss of land stability, the policy will pay up to $10,000 as an additional amount of insurance for repair costs associated with the land. This includes costs required to replace, rebuild, stabilize, or otherwise restore the land necessary to support the part of the dwelling sustaining the covered loss.
+      
+      This coverage is part of the "Additional Protection" section and does not increase the limit of liability applying to the covered property. It is important to note that this coverage applies only if the loss of land stability is directly related to a covered loss to the dwelling.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and limitations related to repairing the ground under your deck due to storm damage:
+      
+      1. **Flood and Water Damage**: The policy does not cover losses caused by flood, including surface water, waves, tidal water, or overflow of any body of water, whether or not driven by wind. Additionally, water or any other substance on or below the surface of the ground, regardless of its source, is excluded. This includes water exerting pressure on or seeping through any part of the residence premises (pages 14-15).
+      
+      2. **Earth Movement**: Losses caused by earth movement, such as landslides, subsidence, mudflow, erosion, or the sinking, rising, shifting, creeping, expanding, bulging, cracking, settling, or contracting of the earth, are not covered. This exclusion applies even if the earth movement is combined with water (pages 14-15).
+      
+      3. **Soil Conditions**: Losses due to soil conditions, including corrosive action, chemicals, compounds, elements, suspensions, crystal formations, or gels in the soil, are excluded (page 14).
+      
+      4. **Weather Conditions**: Weather conditions that contribute to a cause of loss excluded under the policy are not covered (pages 14-15).
+      
+      5. **Planning, Construction, or Maintenance**: Faulty, inadequate, or defective planning, zoning, development, surveying, siting, design, specifications, workmanship, repair, construction, renovation, remodeling, grading, compaction, materials used, or maintenance of property are excluded (pages 14-15).
+      
+      6. **Temporary Repairs**: The policy provides up to $5,000 for temporary repairs to protect covered property from further imminent covered loss following a loss that is covered. However, this does not increase the limit of liability applying to the property being repaired (page 12).
+      
+      These exclusions mean that if the ground under your deck is damaged by a storm, the policy may not cover repairs if the damage is due to any of the excluded causes such as flooding, earth movement, or faulty construction.
+    [PASS] h2-ground-washed-out       ranks: #4
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h3-friends-broken-wrist] 
+=== h3-friends-broken-wrist: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: medical payments to others
+    [exclusions] searched -> search_exclusions: medical payments to others exclusions
+    [exclusions] searched -> search_exclusions: liability exclusions for injuries on property
+    [exclusions] searched -> search_exclusions: exclusions for injuries to guests
+    ANSWER:
+      **What IS covered**
+      
+      The policy provides coverage under "Guest Medical Protection–Coverage Y" for paying a friend's doctor bills if they are injured on your property. This coverage will pay for reasonable expenses incurred for necessary medical, surgical, X-ray, and dental services, as well as ambulance, hospital, licensed nursing, and funeral services. It also covers prosthetic devices, eyeglasses, hearing aids, and pharmaceuticals. These expenses must be incurred and the services performed within three years from the date of the occurrence causing bodily injury.
+      
+      The coverage applies to bodily injury sustained by a person who is on the insured premises with the permission of an insured person. There is no specific dollar limit mentioned in the retrieved text for this coverage, but it is subject to the overall policy limits and conditions.
+      
+      Additionally, the policy states that payment under this coverage is not an admission of liability by the insurer or the insured person. The injured person or someone acting on their behalf must promptly provide written proof of the loss, and the insurer may require the injured person to authorize access to medical records and permit examinations by doctors selected by the insurer.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and conditions that apply to medical payments for injuries sustained by others on your property, such as a friend tripping on your back steps. Here are the relevant exclusions and conditions:
+      
+      1. **Exclusion for Bodily Injury to Insured Persons or Residents**: The policy does not cover bodily injury to any insured person or regular resident of the insured premises. This exclusion does not apply to a residence employee. This means that if the injured person is a regular resident or an insured person, the policy will not cover their medical expenses.
+      
+      2. **Exclusion for Business Activities**: Bodily injury to any person on the insured premises because of a business activity or professional service conducted there is not covered. If the injury occurred in connection with a business activity, the policy would not cover it.
+      
+      3. **Intentional or Criminal Acts**: The policy excludes coverage for bodily injury or property damage intended by, or which may reasonably be expected to result from, the intentional or criminal acts or omissions of any insured person. This applies even if the injury is of a different kind or degree than intended or expected.
+      
+      4. **Workers' Compensation and Similar Laws**: The policy does not cover bodily injury to any person eligible to receive benefits under workers’ compensation, non-occupational disability, or occupational disease law.
+      
+      5. **Conditions for Guest Medical Protection**: If someone is injured, they or someone acting for them must promptly provide written proof of the loss. If requested, this must be done under oath.
+      
+      These exclusions and conditions mean that while the policy may cover some medical expenses for injuries to guests, there are specific situations where coverage would not apply, such as if the injury is related to business activities or involves an insured person or resident.
+    [PASS] h3-friends-broken-wrist    ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h3-bike-scratched-a-car] 
+=== h3-bike-scratched-a-car: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: liability coverage for damages caused by a bicycle
+    [coverage] searched -> search_policy: liability coverage for damages caused by a child's bicycle
+    [exclusions] searched -> search_exclusions: damage caused by bicycle
+    [exclusions] searched -> search_exclusions: damage to parked car
+    [exclusions] searched -> search_exclusions: liability for property damage by family member
+    ANSWER:
+      **What IS covered**
+      
+      The policy provides coverage under Family Liability Protection (Coverage X) for damages your son may cause to a neighbor's parked car with his bicycle. This coverage applies to property damage arising from an occurrence for which an insured person, such as your son, becomes legally obligated to pay. The policy will pay for these damages, subject to the terms, conditions, and limitations specified.
+      
+      The policy states that the total liability for damages resulting from one occurrence will not exceed the Limit of Liability shown on the Policy Declarations. This means that all property damage resulting from the same general conditions is considered one occurrence, and the coverage is capped at the specified limit.
+      
+      Additionally, the policy includes a provision for Damage to Property of Others, which will pay up to $500 each time an insured person causes property damage to someone else's property. The insurer may choose to either repair or replace the damaged property without deduction for depreciation.
+      
+      In summary, the policy covers damages caused by your son's bicycle to a neighbor's car under Family Liability Protection, with the total liability limited to the amount specified in the Policy Declarations. There is also a specific provision for minor property damage up to $500.
+      
+      **What is NOT covered**
+      
+      The policy outlines several exclusions and limitations that may apply to damages caused by your son's bike to a neighbor's parked car:
+      
+      1. **Intentional Acts**: The policy does not cover property damage intended by, or which may reasonably be expected to result from, the intentional or criminal acts or omissions of any insured person. This exclusion applies even if the insured person lacks the mental capacity to govern their conduct or if the damage is of a different kind or degree than intended (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      2. **Damage to Property of Others**: The policy provides coverage up to $500 for property damage caused by an insured person to someone else's property. However, it does not cover property damage to property intentionally damaged by an insured person who has attained the age of 13, or damage arising out of the ownership or use of a motorized land vehicle (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      3. **Motorized Land Vehicles**: The policy does not cover property damage arising out of the ownership, maintenance, use, occupancy, renting, loaning, entrusting, loading, or unloading of any motor vehicle or trailer. However, this exclusion does not apply to certain exceptions like a motor vehicle in dead storage or used exclusively on an insured premises (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      4. **Negligent Supervision**: The policy excludes coverage for property damage arising out of the negligent supervision by any insured person of any person (Source: apc220-ho-policy-jacket.pdf, pages 20-23).
+      
+      These exclusions and limitations suggest that if the damage was intentional or involved a motorized vehicle, coverage may not apply. Additionally, if the damage exceeds $500, the policy may not cover the full amount.
+    [PASS] h3-bike-scratched-a-car    ranks: #7
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h3-tip-money-for-arsonist] 
+=== h3-tip-money-for-arsonist: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: reward for information leading to arrest for arson
+    [exclusions] searched -> search_exclusions: reward for information leading to arrest
+    [exclusions] searched -> search_exclusions: reward for information about arson
+    [exclusions] searched -> search_exclusions: reward for information leading to arrest of arsonist
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers a reward for information leading to an arson conviction. Specifically, it will pay up to $5,000 for information that leads to a conviction related to a fire loss to property covered under Section I of the policy. This $5,000 limit applies regardless of the number of people providing the information.
+      
+      **What is NOT covered**
+      
+      The policy documents I searched do not mention any exclusions, limitations, or conditions specifically related to coverage for rewards for information leading to the arrest of someone who committed arson, such as setting fire to your garage. If this type of coverage is provided, it is not addressed in the exclusions or limitations sections of the policy.
+    [PASS] h3-tip-money-for-arsonist  ranks: #1
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[water-exclusions-flood] 
+water-exclusions-flood: agent=exclusions confidence=high unverified_quotes=0 citations=8
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    [exclusions] searched -> search_exclusions: flood damage exclusions
+    [exclusions] searched -> search_exclusions: seepage and leakage exclusions
+    [exclusions] searched -> search_exclusions: storm water exclusions
+    [exclusions] searched -> search_exclusions: water backup exclusions
+    [PASS] water-exclusions-flood     ranks: #7, #2
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[burst-pipe-coverage] 
+burst-pipe-coverage: agent=coverage+exclusions confidence=high unverified_quotes=0 citations=10
+    [coverage] searched -> search_policy: water damage burst pipe coverage limits conditions
+    [exclusions] searched -> search_exclusions: water damage burst pipe
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    [exclusions] searched -> search_exclusions: burst pipe exclusions
+    [exclusions] searched -> search_exclusions: water damage limitations
+    [exclusions] searched -> search_exclusions: pipe burst limitations
+    [PASS] burst-pipe-coverage        ranks: #1
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[claim-storm] 
+claim-storm: agent=claims confidence=high unverified_quotes=0 citations=14
+    [claims] searched -> search_policy: duties after loss
+    [claims] searched -> search_policy: notice of claim
+    [claims] searched -> search_policy: proof of loss
+    [claims] searched -> search_policy: appraisal
+    [claims] searched -> search_policy: payment of loss
+    [claims] searched -> search_policy: suit against us
+    [claims] searched -> search_exclusions: late notice
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[legal-action-deadline-e2e] 
+legal-action-deadline-e2e: agent=claims confidence=high unverified_quotes=0 citations=4
+    [claims] searched -> search_policy: suit against us
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[theft-police-report-e2e] 
+theft-police-report-e2e: agent=claims confidence=high unverified_quotes=0 citations=13
+    [claims] searched -> search_policy: report a theft
+    [claims] searched -> search_policy: duties after loss
+    [claims] searched -> search_policy: notice of claim
+    [claims] searched -> search_exclusions: late notice
+PASSED
+
+=================================== FAILURES ===================================
+_______ test_lay_wording_question_end_to_end[h-burglary-laptop-jewelry] ________
+
+case = GoldenCase(id='h-burglary-laptop-jewelry', question="Someone broke into my house and stole my laptop and jewelry. How ...asis'), expected_agent=None, answer_keywords=(), known_gap='', query=None, category='H', split='heldout', any_of=False)
+
+    @pytest.mark.parametrize("case", H_RETRIEVAL, ids=lambda c: c.id)
+    def test_lay_wording_question_end_to_end(case) -> None:
+        from src.agents.router import route_and_answer
+    
+        result = route_and_answer(case.question)
+        _show(case.id, result)
+        evidence = [e for r in result.results for e in r.evidence]
+        retrieval = evaluate(case, evidence)
+        print("    " + retrieval.line())
+>       assert retrieval.passed, retrieval.explain(evidence)
+E       AssertionError: h-burglary-laptop-jewelry: not retrieved: ['Theft of jewelry, watches, precious and semi-precious stones']
+E           retrieved 16 chunks:
+E             #1 p18-18 d=1.026 '6. Our Settlement Of Loss \nWe will settle any covered loss w'
+E             #2 p11-11 d=1.027 '3. Debris Removal \nWe will pay reasonable expenses you incur'
+E             #3 p15-15 d=1.046 'Deductible \nWe will pay when a covered loss exceeds the appl'
+E             #4 p12-12 d=1.084 '6. Temporary Repairs After A Loss \nWe will reimburse you up '
+E             #5 p6-7 d=1.222 'the policy was obtained by misrepresentation, fraud or \nconc'
+E             #6 p18-20 d=1.252 '10. Our Rights To Recover Payment \nWhen we pay for any loss,'
+E             #7 p11-11 d=1.266 '2. Credit Card, Debit Card Or Automated Teller Machine \nCard'
+E             #8 p9-9 d=1.165 'Satellite dish antennas and their systems. Losses We Cover U'
+E             #9 p15-18 d=1.466 'Make any \nreasonable repairs necessary to protect it. Keep a'
+E             #10 p9-9 d=1.502 '3.'
+E             #11 p20-20 d=1.264 'If an insured person is \nsued for these damages, we will pro'
+E             #12 p9-9 d=1.526 '5. Property of roomers, boarders, or tenants not related \nto'
+E             #13 p10-10 d=1.550 'Theft, or attempted theft, including disappearance of \nprope'
+E             #14 p14-14 d=1.574 '8.'
+E             #15 p14-15 d=1.577 '2. Water or any other substance that: \na) backs up through s'
+E             #16 p13-14 d=1.583 'Collapse, except as specifically provided in Section I \nAddi'
+E       assert False
+E        +  where False = EvalResult(case_id='h-burglary-laptop-jewelry', ranks={'Theft of jewelry, watches, precious and semi-precious stones': None, 'payment will be on an actual cash value basis': 9}, any_of=False).passed
+
+tests/integration/test_live_behavior.py:88: AssertionError
+__________ test_lay_wording_question_end_to_end[h2-selling-the-house] __________
+
+case = GoldenCase(id='h2-selling-the-house', question="I'm selling my house next month. Can the buyer just take over my polic...ent',), expected_agent=None, answer_keywords=(), known_gap='', query=None, category='H', split='heldout', any_of=False)
+
+    @pytest.mark.parametrize("case", H_RETRIEVAL, ids=lambda c: c.id)
+    def test_lay_wording_question_end_to_end(case) -> None:
+        from src.agents.router import route_and_answer
+    
+        result = route_and_answer(case.question)
+        _show(case.id, result)
+        evidence = [e for r in result.results for e in r.evidence]
+        retrieval = evaluate(case, evidence)
+        print("    " + retrieval.line())
+>       assert retrieval.passed, retrieval.explain(evidence)
+E       AssertionError: h2-selling-the-house: not retrieved: ['You may not transfer this policy to another person without our written consent']
+E           retrieved 0 chunks:
+E             (none)
+E       assert False
+E        +  where False = EvalResult(case_id='h2-selling-the-house', ranks={'You may not transfer this policy to another person without our written consent': None}, any_of=False).passed
+
+tests/integration/test_live_behavior.py:88: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burglary-laptop-jewelry]
+FAILED tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-selling-the-house]
+=================== 2 failed, 29 passed in 139.85s (0:02:19) ===================
