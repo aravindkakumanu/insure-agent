@@ -123,7 +123,8 @@ def test_harmless_text_untouched(text: str) -> None:
 
 def _agent_result(name: str, answer: str, confidence: str = "high") -> AgentResult:
     return AgentResult(
-        answer=answer, sources=[], agent_name=name, confidence=confidence, session_id="s"
+        answer=answer, sources=[], agent_name=name, confidence=confidence, session_id="s",
+        queries=("search_policy: test",),
     )
 
 

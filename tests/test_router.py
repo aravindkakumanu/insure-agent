@@ -575,3 +575,76 @@ def test_ask_endpoint_returns_agent_confidence_and_citations(monkeypatch: pytest
             }
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Out of scope: say so, instead of padding or answering from model knowledge
+# (live finding, CLAUDE.md lesson 33: 0 of 4 unanswerable questions answered cleanly)
+# ---------------------------------------------------------------------------
+
+
+def test_the_classifier_prompt_defines_out_of_scope_and_defaults_to_the_policy() -> None:
+    assert "out_of_scope" in router.INTENTS
+    prompt = " ".join(router.ROUTER_PROMPT.split())
+    assert "out_of_scope - clearly NOT about this homeowners policy" in prompt
+    assert "even if the policy may not answer it" in prompt  # a home question the policy may not answer
+    assert "suing or disputing the insurer" in prompt  # live finding: "how long do I have to sue my insurer?"
+
+
+def test_an_out_of_scope_question_runs_no_agent_and_says_so(fake_agents, monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope"))
+
+    result = router.route_and_answer("Can I deduct my premium on my taxes?", "s1")
+
+    for mock in fake_agents.values():
+        mock.assert_not_called()
+    assert result.answer == router.OUT_OF_SCOPE_ANSWER
+    assert result.agent == "out_of_scope" and result.results == () and result.sources == []
+
+
+def test_an_out_of_scope_question_leaves_the_sessions_follow_up_context_alone(
+    fake_agents, monkeypatch
+) -> None:
+    router._session_intent.clear()
+    router._session_question.clear()
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("exclusions", "", "What excludes mold?"))
+    router.route_and_answer("What about mold?", "s1")
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope"))
+    router.route_and_answer("What's the weather?", "s1")
+
+    assert router._session_intent.get("s1") == "exclusions"
+    assert router._session_question.get("s1") == "What excludes mold?"
+
+
+def test_an_answer_written_without_any_search_is_discarded(monkeypatch) -> None:
+    """Live finding: the tax question reached the Claims Agent, which never searched."""
+    unsearched = make_result("claims", confidence="low", answer="Premiums are generally not deductible.", queries=())
+    searched = make_result("claims", answer="From the policy.")
+
+    assert router._discard_ungrounded(unsearched).answer == router.UNGROUNDED_ANSWER
+    assert router._discard_ungrounded(searched) is searched
+
+
+def test_route_and_answer_discards_an_unsearched_specialist_answer(monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("claims"))
+    monkeypatch.setattr(
+        claims_agent,
+        "answer_question",
+        lambda q, s: make_result("claims", confidence="low", answer="model knowledge", queries=(), session_id=s),
+    )
+
+    result = router.route_and_answer("Can I deduct my premium?", "s1")
+
+    assert "model knowledge" not in result.answer
+    assert router.UNGROUNDED_ANSWER in result.answer
+
+
+@pytest.mark.parametrize("module", SPECIALISTS)
+def test_every_specialist_prompt_says_to_state_that_the_policy_is_silent(module) -> None:
+    """Live finding: the agents padded (auto deductible) or stretched a nearby provision
+    (credit monitoring) instead of saying the policy does not address the question."""
+    prompt = " ".join(module.SYSTEM_PROMPT.split())
+    assert "If the retrieved passages still do not address the question, say so" in prompt
+    assert "Before concluding that the policy is silent, search again with different wording" in prompt
+    assert "never answer from general knowledge" in prompt
+    assert "A related provision is not an answer" in prompt

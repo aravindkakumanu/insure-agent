@@ -38,7 +38,7 @@ specialist's history are stored in SQLite (sessions.py), so they survive a resta
 import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -65,11 +65,25 @@ from src.tracing import (
 
 logger = logging.getLogger(__name__)
 
-Intent = Literal["coverage", "exclusions", "claims"]
-INTENTS: tuple[str, ...] = ("coverage", "exclusions", "claims")
+Intent = Literal["coverage", "exclusions", "claims", "out_of_scope"]
+INTENTS: tuple[str, ...] = ("coverage", "exclusions", "claims", "out_of_scope")
 
 # Classification is a trivial task; a small model keeps the extra hop cheap.
 ROUTER_MODEL = "gpt-4o-mini"
+
+# Said instead of running any agent when the question is not about this policy.
+OUT_OF_SCOPE_ANSWER = (
+    "That question isn't about your homeowners policy, so I can't answer it from the "
+    "policy. I can help with what the policy covers, what it excludes, and how to make "
+    "a claim."
+)
+
+# Said in place of an agent's text when it answered without searching the policy at all:
+# that text came from the model's own knowledge, not from the policy.
+UNGROUNDED_ANSWER = (
+    "I couldn't find policy text that addresses this, and I won't answer it from general "
+    "knowledge. Try rephrasing, or ask about a specific coverage, exclusion or claim step."
+)
 
 # Safe default when classification fails: coverage fans out to the Exclusions
 # Agent as well, so it is the least likely to give a one-sided answer.
@@ -85,6 +99,15 @@ exactly one label:
                reduce coverage
   claims     - how to file or handle a claim: reporting a loss, deadlines,
                documents or proof required, how claims are paid or settled
+  out_of_scope - clearly NOT about this homeowners policy: another kind of
+               insurance (auto, life, health), taxes, legal or financial advice,
+               or general knowledge. Use it ONLY when the question has nothing to
+               do with what this policy covers, excludes or how to claim under
+               it. If the question is about the home, a loss, someone being hurt
+               or suing, your rights or deadlines under the policy (suing or
+               disputing the insurer, cancelling, renewing, premiums), or the
+               policy itself, even if the policy may not answer it, use
+               coverage, exclusions or claims instead.
 
 You are also given previous_intent and previous_question, from the previous turn
 of this conversation (or "none"). If the question is a short follow-up with no
@@ -306,6 +329,14 @@ def merge_results(
     )
 
 
+def _discard_ungrounded(result: AgentResult) -> AgentResult:
+    """Replace an answer that was written without a single policy search."""
+    if result.queries:
+        return result
+    logger.warning("[%s] answered without searching the policy; discarding the text", result.agent_name)
+    return replace(result, answer=UNGROUNDED_ANSWER)
+
+
 @traceable(name="ask", run_type="chain", process_outputs=summarize_router_result)
 def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterResult:
     """
@@ -328,6 +359,19 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
         question, _session_intent.get(session_id), _session_question.get(session_id)
     )
     intent = decision.intent
+    if intent == "out_of_scope":
+        # No agent runs and the session's remembered intent/question are left alone, so a
+        # stray off-topic question doesn't break the follow-up that comes after it.
+        annotate(intent=intent, agent="out_of_scope", confidence="high")
+        return RouterResult(
+            answer=OUT_OF_SCOPE_ANSWER,
+            session_id=session_id,
+            sources=[],
+            agent="out_of_scope",
+            intent=intent,
+            confidence="high",  # grounding does not apply: the reply makes no claim about the policy
+            results=(),
+        )
     _session_intent[session_id] = intent
     _session_question[session_id] = decision.main_question
 
@@ -360,6 +404,7 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
             ]
             results = [f.result() for f in futures]
 
+    results = [_discard_ungrounded(r) for r in results]
     merged = apply_output_guardrails(merge_results(results, session_id, intent, questions))
     annotate(
         intent=merged.intent,

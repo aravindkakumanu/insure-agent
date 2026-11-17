@@ -161,6 +161,7 @@ def make_result(
     evidence: tuple[Evidence, ...] = (),
     unverified_quotes: tuple[str, ...] = (),
     session_id: str = "s",
+    queries: tuple[str, ...] = ("search_policy: test",),  # an agent that searched
 ) -> AgentResult:
     return AgentResult(
         answer=answer,
@@ -170,6 +171,7 @@ def make_result(
         session_id=session_id,
         evidence=evidence,
         unverified_quotes=unverified_quotes,
+        queries=queries,
     )
 
 
