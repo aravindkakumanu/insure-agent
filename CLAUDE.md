@@ -632,6 +632,42 @@ throwaway database and is what the test suite uses).
 - `langgraph_agent.py` (Stage 2 reference) keeps its `MemorySaver`: it is not on the
   `/ask` path and was left untouched on purpose.
 
+### 33. Expanding the eval set: categories, a held-out split, and a baseline
+The 15 golden cases were mostly water and claims, and the retrieval quota had been tuned
+against exactly those, so they could not show whether tuning only fitted them.
+`tests/integration/golden.py` now tags every case with a `category` (A-K, `CATEGORIES`)
+and a `split`: `dev` cases may guide tuning, `heldout` cases were written blind and must
+NOT be used for tuning. The 15 originals stay `dev`. Written from the stored chunks
+before any result was seen: 17 new retrieval cases (A coverage grants, B exclusions and
+limits, C conditions, D definitions, E liability, F "the answer lives on the
+Declarations") and 6 behaviour cases (`BehaviorCase`: G unanswerable or out of scope,
+K adversarial). Held-out rule, fixed in advance: every third new case in file order.
+Category H (lay wording, written by the project owner) is in; I and J are not written yet.
+- **Coverage was thin where the policy is big:** definitions (5 chunks), Section II
+  liability (5), Section III (4) and Additional Protection (10) had no case.
+- **G and K are not retrieval cases.** They need no policy wording, so they cannot be
+  scored by the retrieval tier; they await the end-to-end tier. Offline tests check only
+  that the data is sound (the injection case really trips the guardrail, no other
+  question does, the SSN really gets scrubbed).
+- **Baseline (retrieval tier, run once before any new case was used for tuning):**
+  `tests/integration/baselines/2026-11-13-retrieval.md`: 29 of 32 pass, 2 xfail (the
+  accepted gaps), 1 fail (`dwelling-limit-amount`); 16 of the 17 new cases pass, and all 5
+  held-out cases pass. Read it with these limits: the raw question goes to one plain
+  search (the agent writes its own queries), I wrote the questions after reading the
+  policy so they share its vocabulary (H is the real test of lay wording), and a passing
+  rank says nothing about how large the retrieved chunk is.
+- Giant chunks to remember: chunk 61 (Section II exclusions, ~11,000 chars), chunk 56
+  (Section I payment conditions, ~9,100) and chunk 6 (definitions plus insuring agreement,
+  ~5,900). A case can pass by returning a mostly irrelevant 11,000-character chunk.
+- Do NOT edit a case to make it pass after a run. The record of what failed is the point.
+- **Category H (the owner's lay-wording questions, all held out):** 9 retrieval cases, baseline
+  `tests/integration/baselines/2026-11-17-retrieval-H.md`: **5 pass, 4 fail**, versus 16 of 17
+  on the dev categories. "My car was vandalized" never reaches "motorized land vehicles" (not
+  in the raw top 30): a vocabulary gap that only query rewriting could close. Two of the other
+  failures (tree on fence, candle fire) may reflect an over-narrow ground truth. The tenth H
+  case is a behaviour case (the policy cannot say whether asking affects rates). Nothing was
+  tuned after seeing these numbers.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -765,7 +801,8 @@ uvicorn main:app --reload
 | `src/tracing.py`            | LangSmith helpers: annotate, context-safe submit, summaries |
 | `tests/test_tracing.py`     | Offline trace-shape tests (recording client)          |
 | `.github/workflows/ci.yml`  | CI: offline `pytest` on push to main and on PRs (no key, no data) |
-| `tests/integration/golden.py` | Golden questions + `evaluate()` scoring; live tests beside it |
+| `tests/integration/golden.py` | Golden + behaviour cases (categories, dev/held-out split), `evaluate()`; live tests beside it |
+| `tests/integration/baselines/` | Recorded eval results (date, command, per-case ranks) |
 | `tests/test_golden_data.py` | Offline checks of the golden set and harness          |
 | `tests/test_loader_boilerplate.py` | Header/footer stripping tests              |
 | `tests/conftest.py`, `tests/fakes.py` | Offline safety net; shared fakes             |
