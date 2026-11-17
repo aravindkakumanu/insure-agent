@@ -1,0 +1,82 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 28 items / 20 deselected / 8 selected
+
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-auto-deductible] 
+=== out-of-scope-auto-deductible: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-market-value] 
+=== out-of-scope-market-value: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      That question isn't about your homeowners policy, so I can't answer it from the policy. I can help with what the policy covers, what it excludes, and how to make a claim.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[near-miss-credit-monitoring] 
+=== near-miss-credit-monitoring: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: credit monitoring after identity theft
+    [coverage] searched -> search_policy: identity theft credit monitoring coverage
+    [exclusions] searched -> search_exclusions: credit monitoring identity theft
+    ANSWER:
+      **What IS covered**
+      
+      The policy does not specifically mention coverage for credit monitoring services after identity theft. The retrieved sections focus on coverage for unauthorized use of credit cards, debit cards, and similar financial instruments, as well as check forgery and counterfeit money. This coverage includes a maximum limit of liability of $1,000 for any one loss, with no deductible applied. However, it does not extend to credit monitoring services.
+      
+      If you are looking for coverage specifically for credit monitoring after identity theft, this policy does not provide it. The coverage mentioned is a different type of protection related to financial losses from unauthorized transactions.
+      
+      **What is NOT covered**
+      
+      The policy does not specifically mention exclusions, limitations, or conditions related to credit monitoring after identity theft. The retrieved sections focus on coverage for unauthorized use of credit cards, debit cards, and similar financial instruments, but do not address credit monitoring services. Therefore, it appears that the policy is silent on this specific aspect of identity theft protection.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[out-of-scope-tax-deduction] 
+=== out-of-scope-tax-deduction: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[rates-after-claim] 
+=== rates-after-claim: agent=out_of_scope confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_behavior_case[h-ask-before-filing-a-claim] 
+=== h-ask-before-filing-a-claim: agent=not_in_policy confidence=high unverified_quotes=0
+    ANSWER:
+      The policy doesn't say whether or how asking about coverage, filing a claim or your claim history affects your premium or rates; that is a question for your insurer or agent. If you tell me what happened, or what you are thinking of claiming for, I can check what the policy says about it.
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-selling-the-house] 
+=== h2-selling-the-house: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: buyer taking over policy when selling house
+    [exclusions] searched -> search_exclusions: buyer takes over after house sale
+    [exclusions] searched -> search_exclusions: transfer of ownership after house sale
+    [exclusions] searched -> search_exclusions: home insurance policy transfer after sale
+    ANSWER:
+      **What IS covered**
+      
+      The policy states that you may not transfer the policy to another person without the insurance company's written consent. This means that if you sell your house, the buyer cannot automatically take over your existing insurance policy. Instead, the buyer would need to obtain their own insurance policy for the property.
+      
+      **What is NOT covered**
+      
+      The policy does not explicitly address exclusions, limitations, or conditions specifically related to the transfer of ownership when a buyer takes over after you sell your house. However, there are general conditions and limitations that may indirectly affect coverage in such situations:
+      
+      1. **Insurable Interest and Liability**: The policy states that in the event of a covered loss, the insurer will not pay more than an insured person's insurable interest in the property covered. This means that once you sell the house, you no longer have an insurable interest in it, and the policy would not cover losses for the new owner unless they have their own insurance policy.
+      
+      2. **Substantial Change or Increase in Hazard**: The policy mentions that any substantial change or increase in hazard, if changed or increased by any means within the control or knowledge of an insured person, is not covered. This could potentially apply if the new owner makes significant changes that increase the risk, but it primarily affects the original insured party's coverage.
+      
+      3. **Misrepresentation, Fraud, or Concealment**: The policy can be voided if it was obtained by misrepresentation, fraud, or concealment of material facts. This is a general condition that applies to the validity of the policy itself.
+      
+      4. **Termination of Coverage**: The policy will terminate on the effective date and hour stated on the cancellation notice if the policy is canceled for reasons such as nonpayment of premium or other specified reasons. This means that coverage does not automatically transfer to a new owner upon the sale of the property.
+      
+      In summary, the policy does not provide coverage for a new owner after the sale of the house, and the new owner would need to obtain their own insurance policy. The existing policyholder's coverage is limited to their insurable interest, which ceases upon the sale of the property.
+    [PASS] h2-selling-the-house       ranks: #3
+PASSED
+tests/integration/test_live_answers.py::test_answer_reaches_the_right_agent_and_states_the_facts[legal-action-deadline-e2e] 
+legal-action-deadline-e2e: agent=coverage+exclusions confidence=high unverified_quotes=0 citations=11
+    [coverage] searched -> search_policy: time limit to sue insurer
+    [exclusions] searched -> search_exclusions: suing insurer
+    [exclusions] searched -> search_exclusions: legal action against insurer
+    [exclusions] searched -> search_exclusions: lawsuit against insurance company
+PASSED
+
+====================== 8 passed, 20 deselected in 24.81s =======================

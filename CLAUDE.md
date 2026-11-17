@@ -706,6 +706,14 @@ confidence) or answered from model knowledge with no search (tax).
   unseen. Not fixed by this: silence about a SUB-part of a question (rates, in
   `h-ask-before-filing-a-claim`), the fixed IS/NOT-covered layout, claims routing.
 
+- **Addendum (the "policy doesn't say" note):** the classifier also reports `outside_topic`; for
+  `rates_and_claim_history` with nothing specific named the router replies with a fixed note and
+  an invitation to name a loss, and with a named loss it puts the note in front of the normal
+  answer. The topic list is CLOSED on purpose: a free-text version said the policy was silent
+  on transferring it to a buyer (the Policy Transfer clause covers exactly that). Lesson: an
+  LLM does not know what the policy contains, so only let it assert silence for topics a
+  policy document can never contain. Results: `baselines/2026-11-17-e2e-not-in-policy.md`.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
