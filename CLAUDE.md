@@ -679,6 +679,33 @@ Category H (lay wording, written by the project owner) is in; I and J are not wr
   out-of-scope behaviour, (2) the fixed IS/NOT-covered layout forces filler, (3) claims
   routing for "what will I get back?", (4) confidence is high on wrong answers.
 
+### 34. Saying "the policy does not address that": a router label, a prompt rule and a guard
+Live finding (lesson 33's end-to-end baseline): with no way to say "not in the policy", the
+system padded (auto deductible), stretched a nearby provision (credit monitoring, at high
+confidence) or answered from model knowledge with no search (tax).
+- **Router label `out_of_scope`:** a question clearly not about this policy (another line of
+  insurance, taxes, general knowledge) gets a fixed reply, runs no agent, and leaves the
+  session's remembered intent/question alone. Its confidence is "high" because the reply
+  makes no claim about the policy (grounding does not apply). **False positives are the
+  risk**: the first version sent "How long do I have to sue my insurer?" out of scope, so
+  the router prompt now lists what is IN scope (someone hurt or suing, disputing the
+  insurer, cancelling, renewing, premiums, deadlines).
+- **Prompt rule (all three specialists):** if the retrieved passages do not address the
+  question, say so in a sentence or two and stop; a related provision is a DIFFERENT thing;
+  never answer from general knowledge. Side effect found live: the agents then declared the
+  policy silent after ONE weak search (icy driveway, baseball: both good answers turned into
+  "no liability coverage"), so the rule is preceded by "search again with different wording:
+  the policy uses formal insurance terms". Lesson: a rule that licenses "I don't know" needs
+  a "try harder first" beside it.
+- **Guard `_discard_ungrounded`:** an agent answer written with no search at all is replaced
+  by a fixed message (`UNGROUNDED_ANSWER`). It did not fire live (the router caught the tax
+  question first), so it is proven only by offline tests that fail when it is removed.
+- **Result:** 20 of 21 end-to-end cases pass; G auto deductible, tax and credit monitoring
+  are now correct; see `baselines/2026-11-17-e2e-out-of-scope.md`. The held-out lay-wording
+  cases were seen in three full runs and found the regressions, so they are no longer
+  unseen. Not fixed by this: silence about a SUB-part of a question (rates, in
+  `h-ask-before-filing-a-claim`), the fixed IS/NOT-covered layout, claims routing.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
