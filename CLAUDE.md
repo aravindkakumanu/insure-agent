@@ -660,13 +660,24 @@ Category H (lay wording, written by the project owner) is in; I and J are not wr
   (Section I payment conditions, ~9,100) and chunk 6 (definitions plus insuring agreement,
   ~5,900). A case can pass by returning a mostly irrelevant 11,000-character chunk.
 - Do NOT edit a case to make it pass after a run. The record of what failed is the point.
-- **Category H (the owner's lay-wording questions, all held out):** 9 retrieval cases, baseline
-  `tests/integration/baselines/2026-11-17-retrieval-H.md`: **5 pass, 4 fail**, versus 16 of 17
-  on the dev categories. "My car was vandalized" never reaches "motorized land vehicles" (not
-  in the raw top 30): a vocabulary gap that only query rewriting could close. Two of the other
-  failures (tree on fence, candle fire) may reflect an over-narrow ground truth. The tenth H
-  case is a behaviour case (the policy cannot say whether asking affects rates). Nothing was
-  tuned after seeing these numbers.
+- **Category H (the owner's lay-wording questions, all held out):** 9 retrieval cases + 1
+  behaviour case. Retrieval baseline `baselines/2026-11-17-retrieval-H.md`: **5 pass, 4
+  fail** (dev categories: 16 of 17). At the owner's request `h-tree-on-fence` and
+  `h-candle-fire` were then loosened (`GoldenCase.any_of`: any one of several relevant
+  snippets passes), which makes it 7 of 9; the alternatives were chosen AFTER seeing what
+  was retrieved, so those two passes are weak evidence. "My car was vandalized" never
+  reaches "motorized land vehicles" in the raw top 30 (a vocabulary gap).
+- **End-to-end baseline (router + GPT-4o), `baselines/2026-11-17-e2e.md`:** 14 of 16 pass the
+  mechanical checks (`tests/integration/test_live_behavior.py`: forbidden phrases, dollar
+  figures must appear in retrieved text, wording retrieved by the agents' own queries), but
+  a human read of every answer is less kind: 7 of 9 lay-wording answers are good, and NONE
+  of the 4 unanswerable (G) cases is clean. The system has no "the policy does not address
+  that" behaviour: it pads (auto deductible, market value), claims coverage that is not
+  there (credit monitoring, at high confidence), or answers from model knowledge with no
+  search (tax). Mechanical checks are weak by design: always read the printed answers.
+- Four patterns were named, to be handled one at a time with a re-run in between: (1) no
+  out-of-scope behaviour, (2) the fixed IS/NOT-covered layout forces filler, (3) claims
+  routing for "what will I get back?", (4) confidence is high on wrong answers.
 
 ---
 
