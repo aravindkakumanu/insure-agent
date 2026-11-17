@@ -161,6 +161,8 @@ def test_route_run_shows_the_decision_and_the_rewritten_questions(coverage_quest
         "intent": "coverage",
         "coverage_question": "COV?",
         "exclusions_question": "EXC?",
+        "not_in_policy": "",
+        "names_specific_subject": True,
     }
 
 

@@ -65,7 +65,11 @@ class FakeRouterLLM:
         coverage_question: str = "",
         exclusions_question: str = "",
         error: Optional[Exception] = None,
+        outside_topic: str = "none",
+        names_specific_subject: bool = True,
     ) -> None:
+        self.outside_topic = outside_topic
+        self.names_specific_subject = names_specific_subject
         self.intent = intent
         self.coverage_question = coverage_question
         self.exclusions_question = exclusions_question
@@ -80,6 +84,8 @@ class FakeRouterLLM:
             intent=self.intent,
             coverage_question=self.coverage_question,
             exclusions_question=self.exclusions_question,
+            outside_topic=self.outside_topic,
+            names_specific_subject=self.names_specific_subject,
         )
 
 

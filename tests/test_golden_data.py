@@ -178,10 +178,11 @@ def test_the_original_cases_stay_in_dev() -> None:
 
 
 def test_held_out_cases_follow_the_rule_fixed_before_any_result() -> None:
-    """Every third new case (not counting category H) in file order; all of H is held out."""
+    """Every third of the first new cases (not counting category H) in file order; all of H is held out.
+    Behaviour cases added after the first results (the rates ones) are dev cases."""
     original = 15
     new = [c for c in GOLDEN[original:] if c.category != "H"]
-    behavior = [c for c in BEHAVIOR if c.category != "H"]
+    behavior = [c for c in BEHAVIOR if c.category != "H"][:6]  # the first six; later ones are dev
     assert [c.id for c in new if c.split == "heldout"] == [c.id for c in new[2::3]]
     assert [c.id for c in behavior if c.split == "heldout"] == [c.id for c in behavior[2::3]]
 
@@ -189,7 +190,7 @@ def test_held_out_cases_follow_the_rule_fixed_before_any_result() -> None:
 def test_every_category_h_case_is_held_out() -> None:
     """The owner wrote them blind, so none of them may ever guide tuning."""
     h = [c for c in (*GOLDEN, *BEHAVIOR) if c.category == "H"]
-    assert len(h) == 10
+    assert len(h) == 14
     assert all(c.split == "heldout" for c in h)
 
 

@@ -589,6 +589,7 @@ def test_the_classifier_prompt_defines_out_of_scope_and_defaults_to_the_policy()
     assert "out_of_scope - clearly NOT about this homeowners policy" in prompt
     assert "even if the policy may not answer it" in prompt  # a home question the policy may not answer
     assert "suing or disputing the insurer" in prompt  # live finding: "how long do I have to sue my insurer?"
+    assert "selling the house or transferring the policy" in prompt  # live finding: buyer takes over the policy
 
 
 def test_an_out_of_scope_question_runs_no_agent_and_says_so(fake_agents, monkeypatch) -> None:
@@ -648,3 +649,88 @@ def test_every_specialist_prompt_says_to_state_that_the_policy_is_silent(module)
     assert "Before concluding that the policy is silent, search again with different wording" in prompt
     assert "never answer from general knowledge" in prompt
     assert "A related provision is not an answer" in prompt
+
+
+# ---------------------------------------------------------------------------
+# A part of the question the policy cannot answer (live finding: "will asking
+# about coverage raise my rates?" got a dump of coverages and exclusions)
+# ---------------------------------------------------------------------------
+
+RATES = router.OUTSIDE_TOPICS["rates_and_claim_history"]
+
+
+def test_the_classifier_prompt_asks_what_the_policy_cannot_answer() -> None:
+    prompt = " ".join(router.ROUTER_PROMPT.split())
+    assert "outside_topic" in prompt and "names_specific_subject" in prompt
+    assert "rates_and_claim_history" in prompt
+    # live finding: a free-text version said the policy was silent on transferring it
+    assert "selling the house, transferring or cancelling the policy" in prompt
+
+
+def test_a_general_question_the_policy_cannot_answer_gets_the_note_and_an_invitation(
+    fake_agents, monkeypatch
+) -> None:
+    router._session_intent.clear()
+    monkeypatch.setattr(
+        router, "_get_router_llm", lambda: FakeRouterLLM("coverage", outside_topic="rates_and_claim_history", names_specific_subject=False)
+    )
+
+    result = router.route_and_answer("Can I check coverage without it counting as a claim?", "s9")
+
+    for mock in fake_agents.values():
+        mock.assert_not_called()
+    assert result.answer.startswith(f"The policy doesn't say {RATES}")
+    assert "If you tell me what happened" in result.answer
+    assert result.agent == "not_in_policy" and result.results == ()
+    assert router._session_intent.get("s9") is None  # nothing to follow up on
+
+
+def test_a_specific_question_with_an_unanswerable_part_runs_agents_after_the_note(
+    fake_agents, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        router, "_get_router_llm", lambda: FakeRouterLLM("coverage", outside_topic="rates_and_claim_history", names_specific_subject=True)
+    )
+
+    result = router.route_and_answer("Will filing a claim for my stolen laptop raise my rates?", "s1")
+
+    fake_agents["coverage"].assert_called_once()
+    assert result.answer.startswith(f"The policy doesn't say {RATES}; that is a question for")
+    assert "What IS covered" in result.answer
+
+
+def test_no_note_when_the_policy_can_answer(fake_agents, monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("coverage", names_specific_subject=False))
+
+    result = router.route_and_answer("What does my policy cover?", "s1")
+
+    assert "The policy doesn't say" not in result.answer
+    fake_agents["coverage"].assert_called_once()  # a general question WITH nothing unanswerable still runs
+
+
+def test_an_out_of_scope_label_with_a_not_in_policy_phrase_says_what_the_policy_cannot_state(
+    fake_agents, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        router, "_get_router_llm", lambda: FakeRouterLLM("out_of_scope", outside_topic="rates_and_claim_history")
+    )
+
+    result = router.route_and_answer("Will my premium go up if I file a claim?", "s1")
+
+    assert result.answer.startswith("The policy doesn't say whether or how asking about coverage")
+    for mock in fake_agents.values():
+        mock.assert_not_called()
+
+
+def test_the_classifier_prompt_keeps_would_the_policy_pay_questions_in_scope() -> None:
+    """Live finding: 'will it pay for credit monitoring?' was sent out of scope."""
+    prompt = " ".join(router.ROUTER_PROMPT.split())
+    assert "never out_of_scope, even if the answer is \"no\"" in prompt
+
+
+def test_the_outside_topic_is_a_closed_list_the_classifier_cannot_extend() -> None:
+    """Live finding: free text let the classifier call the policy silent on transferring it."""
+    assert set(router.OUTSIDE_TOPICS) == {"rates_and_claim_history"}
+    with pytest.raises(ValueError):
+        router.IntentClassification(intent="coverage", outside_topic="policy_transfer")
+    assert router.IntentClassification(intent="coverage").outside_topic == "none"

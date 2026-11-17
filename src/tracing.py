@@ -93,6 +93,8 @@ def summarize_decision(decision: Any) -> dict:
         "intent": decision.intent,
         "coverage_question": decision.coverage_question,
         "exclusions_question": decision.exclusions_question,
+        "not_in_policy": decision.not_in_policy,
+        "names_specific_subject": decision.names_specific_subject,
     }
 
 

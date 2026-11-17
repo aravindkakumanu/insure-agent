@@ -47,7 +47,7 @@ from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from src.agents import claims_agent, coverage_agent, exclusions_agent
-from src.agents.guardrails import apply_output_guardrails, check_prompt_injection
+from src.agents.guardrails import apply_output_guardrails, check_prompt_injection, scrub_pii
 from src.agents.sessions import SessionMap
 from src.agents.results import (
     AgentResult,
@@ -78,6 +78,29 @@ OUT_OF_SCOPE_ANSWER = (
     "a claim."
 )
 
+# Topics a policy document is reliably silent on. A CLOSED list on purpose: a free-text "the
+# policy doesn't say X" from the classifier was wrong live (it said the policy was silent on
+# transferring the policy to a buyer, which the Policy Transfer clause covers).
+OUTSIDE_TOPICS: dict[str, str] = {
+    "rates_and_claim_history": (
+        "whether or how asking about coverage, filing a claim or your claim history "
+        "affects your premium or rates"
+    ),
+}
+
+
+def not_in_policy_note(phrase: str) -> str:
+    """The sentence that says the policy cannot answer part of a question."""
+    return f"The policy doesn't say {phrase}; that is a question for your insurer or agent."
+
+
+# Added after the note when the question names no loss, item or topic at all: there is
+# nothing for the agents to look up, so none is run.
+ASK_FOR_DETAIL = (
+    " If you tell me what happened, or what you are thinking of claiming for, I can check "
+    "what the policy says about it."
+)
+
 # Said in place of an agent's text when it answered without searching the policy at all:
 # that text came from the model's own knowledge, not from the policy.
 UNGROUNDED_ANSWER = (
@@ -105,13 +128,28 @@ exactly one label:
                do with what this policy covers, excludes or how to claim under
                it. If the question is about the home, a loss, someone being hurt
                or suing, your rights or deadlines under the policy (suing or
-               disputing the insurer, cancelling, renewing, premiums), or the
-               policy itself, even if the policy may not answer it, use
-               coverage, exclusions or claims instead.
+               disputing the insurer, cancelling, renewing, premiums, selling the
+               house or transferring the policy, what happens to the policy
+               itself), or the policy itself, even if the policy may not answer it, use
+               coverage, exclusions or claims instead. A question asking whether
+               THIS policy would pay for, cover or allow something is never
+               out_of_scope, even if the answer is "no".
 
 You are also given previous_intent and previous_question, from the previous turn
 of this conversation (or "none"). If the question is a short follow-up with no
 intent of its own (for example "what about mold?"), return previous_intent.
+
+Also fill in two fields about what the POLICY DOCUMENT can answer:
+  outside_topic - "rates_and_claim_history" when the question (or part of it) asks
+                  how asking about coverage, filing a claim or your claim
+                  history affects your premium, rates or record with the
+                  insurer. A policy document never says that. Otherwise "none":
+                  do NOT use it for anything else, even if you think the policy
+                  might not mention it (selling the house, transferring or
+                  cancelling the policy, and so on are policy terms).
+  names_specific_subject - true when the question names a specific loss, item,
+                  event or policy topic; false for a general request such as
+                  "check whether something would be covered" with nothing named.
 
 Also rewrite the question as two STANDALONE questions, each understandable
 without the conversation, keeping every specific the user gave (the peril, the
@@ -141,6 +179,12 @@ class IntentClassification(BaseModel):
     exclusions_question: str = Field(
         default="", description="Standalone question about exclusions and limitations"
     )
+    outside_topic: Literal["none", "rates_and_claim_history"] = Field(
+        default="none", description="A topic a policy document never states, or 'none'"
+    )
+    names_specific_subject: bool = Field(
+        default=True, description="Whether the question names a specific loss, item or topic"
+    )
 
 
 @dataclass(frozen=True)
@@ -150,6 +194,8 @@ class RoutingDecision:
     intent: Intent
     coverage_question: str
     exclusions_question: str
+    not_in_policy: str = ""  # what the question asks that a policy document cannot state
+    names_specific_subject: bool = True
 
     @property
     def main_question(self) -> str:
@@ -215,6 +261,8 @@ def classify_intent(
         intent=intent,
         coverage_question=(getattr(result, "coverage_question", "") or "").strip() or question,
         exclusions_question=(getattr(result, "exclusions_question", "") or "").strip() or question,
+        not_in_policy=OUTSIDE_TOPICS.get(getattr(result, "outside_topic", "none"), ""),
+        names_specific_subject=bool(getattr(result, "names_specific_subject", True)),
     )
     logger.info("Router: %r -> %s (previous=%s)", question[:60], intent, previous_intent)
     return decision
@@ -363,13 +411,30 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
         # No agent runs and the session's remembered intent/question are left alone, so a
         # stray off-topic question doesn't break the follow-up that comes after it.
         annotate(intent=intent, agent="out_of_scope", confidence="high")
+        if decision.not_in_policy:  # say WHAT the policy cannot state, not just "not about your policy"
+            answer = not_in_policy_note(scrub_pii(decision.not_in_policy)) + ASK_FOR_DETAIL
+        else:
+            answer = OUT_OF_SCOPE_ANSWER
         return RouterResult(
-            answer=OUT_OF_SCOPE_ANSWER,
+            answer=answer,
             session_id=session_id,
             sources=[],
             agent="out_of_scope",
             intent=intent,
             confidence="high",  # grounding does not apply: the reply makes no claim about the policy
+            results=(),
+        )
+    note = scrub_pii(not_in_policy_note(decision.not_in_policy)) if decision.not_in_policy else ""
+    if note and not decision.names_specific_subject:
+        # Only a question the policy cannot answer, with nothing specific to look up.
+        annotate(intent=intent, agent="not_in_policy", confidence="high")
+        return RouterResult(
+            answer=note + ASK_FOR_DETAIL,
+            session_id=session_id,
+            sources=[],
+            agent="not_in_policy",
+            intent=intent,
+            confidence="high",
             results=(),
         )
     _session_intent[session_id] = intent
@@ -406,6 +471,8 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
 
     results = [_discard_ungrounded(r) for r in results]
     merged = apply_output_guardrails(merge_results(results, session_id, intent, questions))
+    if note:
+        merged = replace(merged, answer=f"{note}\n\n{merged.answer}")
     annotate(
         intent=merged.intent,
         agent=merged.agent,

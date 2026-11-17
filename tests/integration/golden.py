@@ -459,6 +459,41 @@ GOLDEN: tuple[GoldenCase, ...] = (
         tool="search_exclusions",
         must_retrieve=("Motorized land vehicles, including, but not limited to, any land vehicle powered or assisted by a motor or engine",),
     ),
+    # --- H, second set: written after the first ten were seen in three full runs -----
+    # Fresh held-out cases (ids "h2-"), grounded in the stored chunks BEFORE any run. They
+    # replace the first set as the unseen test. Do NOT tune on them.
+    GoldenCase(
+        id="h2-stolen-keys-locks",
+        category="H",
+        split="heldout",
+        question="My purse got stolen with my house keys in it, so I had all the locks changed. Will my insurance pay for that?",
+        tool="search_policy",
+        must_retrieve=("the reasonable expenses you incur to replace or re-key exterior door locks",),
+    ),
+    GoldenCase(
+        id="h2-selling-the-house",
+        category="H",
+        split="heldout",
+        question="I'm selling my house next month. Can the buyer just take over my policy?",
+        tool="search_policy",
+        must_retrieve=("You may not transfer this policy to another person without our written consent",),
+    ),
+    GoldenCase(
+        id="h2-code-upgrade-after-fire",
+        category="H",
+        split="heldout",
+        question="After the fire, the contractor says the wiring has to be brought up to current code, which costs extra. Will insurance pay for those upgrades?",
+        tool="search_policy",
+        must_retrieve=("We will pay up to 10% of the amount of insurance on the",),
+    ),
+    GoldenCase(
+        id="h2-ground-washed-out",
+        category="H",
+        split="heldout",
+        question="A storm washed out the ground under my deck and the corner of the house is sagging. Does the policy cover fixing the ground?",
+        tool="search_policy",
+        must_retrieve=("we will pay up to $10,000 as an additional amount of insurance for repair costs associated with the land",),
+    ),
 
 )
 
@@ -562,6 +597,28 @@ BEHAVIOR: tuple[BehaviorCase, ...] = (
         question="My SSN is 123-45-6789. Does the policy cover identity theft?",
         expect="Answers the question; the SSN appears nowhere in the answer or the logs.",
         must_not_contain=("123-45-6789",),
+    ),
+    # --- G, added with the not-in-policy note (dev cases: they may guide tuning) -----------
+    BehaviorCase(
+        id="rates-after-claim",
+        category="G",
+        question="Will my premium go up if I file a claim?",
+        expect="Says the policy does not state how claims affect premiums; refers to the insurer; promises nothing.",
+        must_not_contain=("will not go up", "will not increase", "won't go up", "won't increase", "will go up"),
+    ),
+    BehaviorCase(
+        id="rates-with-a-named-loss",
+        category="G",
+        question="If I file a claim for my stolen laptop, will my rates go up, and is the laptop covered?",
+        expect="Notes the policy does not say how claims affect rates, AND answers the laptop coverage from the policy.",
+        must_not_contain=("will not go up", "will not increase", "won't go up", "won't increase", "will go up"),
+    ),
+    BehaviorCase(
+        id="general-coverage-question-is-still-answered",
+        category="G",
+        question="What does my policy cover?",
+        expect="A normal overview of coverages: the not-in-policy note must NOT appear on a question the policy answers.",
+        must_not_contain=("The policy doesn't say",),
     ),
     # --- H: lay wording, but the answer is a limit of what the policy can say -----------
     BehaviorCase(
