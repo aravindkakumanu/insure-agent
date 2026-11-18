@@ -31,11 +31,15 @@ flowchart TD
     q["Question"] --> inj{"Injection<br/>check"}
     inj -- "looks like an attack" --> rej["HTTP 400"]
     inj -- ok --> router["Router: one gpt-4o-mini call<br/>classifies intent, rewrites the<br/>question for each specialist"]
+    router -- "not about this policy" --> confirm{"gpt-4o confirms?"}
+    confirm -- yes --> refuse["Fixed reply:<br/>not about your policy"]
+    confirm -- "no, the policy could answer" --> cov
+    router -- "asks how claims affect rates" --> nip["Note: the policy<br/>doesn't say"]
     router -- coverage --> cov["Coverage agent"]
     router -- coverage --> exc["Exclusions agent"]
     router -- exclusions --> exc
     router -- claims --> clm["Claims agent"]
-    cov --> merge["Deterministic merge"]
+    cov --> merge["Deterministic merge<br/>(drops empty or repeated sections)"]
     exc --> merge
     clm --> merge
     merge --> quotes["Quote check<br/>+ confidence"]
@@ -57,10 +61,17 @@ A few choices worth knowing about:
   retrieval tools returned, and it measures grounding, not correctness.
 - **Quotes are checked.** Any passage the answer puts in quotation marks is
   looked up in the retrieved text; a miss lowers confidence and adds a note.
-- **The merge is deterministic**, not another LLM call, so it cannot invent text.
+- **The merge is deterministic**, not another LLM call, so it cannot invent text. A
+  section with nothing to say (the policy does not address it, or it only repeats the
+  other section) is left out rather than padded.
+- **It says when the policy does not answer.** Questions that are not about the policy
+  get a fixed reply (a stronger model must confirm that before it refuses), a
+  question about how claims affect your rates gets a note that the policy does not
+  say, and an agent that answers without searching the policy is retried once and then
+  discarded, so nothing is answered from the model's own knowledge.
 
 The reasoning behind each decision, including what broke in live testing and
-how it was fixed, is written up in [CLAUDE.md](CLAUDE.md) (lessons 7-30).
+how it was fixed, is written up in [CLAUDE.md](CLAUDE.md) (lessons 7-37).
 
 ## Quickstart
 
@@ -112,7 +123,7 @@ The response has this shape (values elided):
 {
   "answer": "What IS covered ... What is NOT covered ...",
   "session_id": "…",
-  "agent": "coverage+exclusions",
+  "agent": "coverage+exclusions",   // or "claims", "out_of_scope", "not_in_policy"
   "confidence": "high",
   "citations": [
     {"source": "apc220-ho-policy-jacket.pdf", "page": 0, "page_end": 0,
@@ -145,13 +156,20 @@ This is what CI runs on every push and pull request.
 
 A golden-question evaluation checks retrieval and answers against the real
 policy. It needs the key and the ingested sample policy, so it is opt-in and runs locally
-(CI runs only the offline suite, because the PDF is not in the repo):
+(CI runs only the offline suite, because the PDF is not in the repo). Cases are tagged by
+category and split into `dev` (may guide tuning) and `heldout` (written blind, never tuned
+on); recorded results are in `tests/integration/baselines/`.
 
 ```bash
-RUN_LIVE_EVAL=1    pytest tests/integration/test_live_retrieval.py -v -s   # embeddings only
-RUN_LIVE_EVAL=full pytest tests/integration/test_live_answers.py  -v -s    # router + GPT-4o
+RUN_LIVE_EVAL=1    pytest tests/integration/test_live_retrieval.py -v -s   # embeddings only: cheap
+RUN_LIVE_EVAL=full pytest tests/integration/test_live_answers.py tests/integration/test_live_behavior.py -v -s
 python -m tests.integration.probe <case-id>   # why did a case miss?
+python -m tests.integration.stability <case-id> -n 4   # how often is it retrieved?
 ```
+
+**Cost:** the `full` tier calls GPT-4o several times per question, about 3 to 6 cents
+each, so the whole set is roughly a dollar and a half. Run the cases a change can
+affect (`-k`), not everything, and use the retrieval tier for retrieval changes.
 
 Run it after any change to retrieval, chunking or prompts; the run prints the
 current result, so trust that over any number written down here. Cases that
@@ -180,7 +198,9 @@ src/agents/router.py        intent classifier, fan-out, merge
 src/agents/*_agent.py       Coverage, Exclusions and Claims specialists
 src/agents/tools.py         retrieval tools that return evidence records
 src/agents/results.py       typed results, quote check, confidence
+src/agents/sessions.py      SQLite-backed conversation state
 src/agents/guardrails.py    injection check, PII scrubbing, low-confidence warning
+src/tracing.py              optional LangSmith tracing
 tests/                      offline tests; tests/integration/ holds the live eval
 ```
 
@@ -191,6 +211,12 @@ tests/                      offline tests; tests/integration/ holds the live eva
 - Sessions are stored in a local SQLite file (`data/sessions.db`), so they survive
   restarts, but nothing expires or deletes them, and the file holds unscrubbed
   question and answer text. One machine only: it is not a shared database.
+- Retrieval of everyday-wording questions is not stable run to run: the agents write
+  their own search queries, and the passage that answers a question can sit just
+  outside the 4 chunks a search returns. A handful of questions in the eval set pass
+  some runs and miss others, and a miss can produce a wrong answer, so check anything
+  that matters against the policy text. Measured in `tests/integration/baselines/`.
+- Each question costs roughly 3 to 6 cents of OpenAI usage (several GPT-4o calls).
 - No authentication, rate limiting or multi-tenancy.
 - Confidence says how well grounded an answer is, not whether it is complete or
   right, and the injection check is a tripwire, not a defence.

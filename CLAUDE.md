@@ -12,7 +12,7 @@ Keep it updated as the project evolves.
 | 1     | Project skeleton, RAG pipeline, REST API | ✅ Complete     |
 | 2     | LangGraph agent, tool routing, memory    | ✅ Complete     |
 | 3     | Multi-agent router — lightweight LLM classifier routes to Coverage Agent, Exclusions Agent, or Claims Agent, each a separate LangGraph graph with its own system prompt and tool subset. | ✅ Complete     |
-| 4     | In progress. Done: LangSmith tracing (lesson 31), CI, durable sessions (lesson 32). | 🚧 In progress |
+| 4     | In progress. Done: LangSmith tracing (31), CI, durable sessions (32), a categorised eval set with a held-out split (33), saying when the policy does not answer (34, 36), query wording (35), merge layout (37). Open: flaky retrieval of everyday-wording questions, claims routing for "what will I get back?". | 🚧 In progress |
 
 ### Stage 3 — Multi-agent router
 - `src/agents/router.py`: `classify_intent()` (one structured-output LLM call, not a
@@ -607,8 +607,12 @@ throwaway database and is what the test suite uses).
   router code and the tests that clear it barely changed. It connects lazily:
   importing the router opens no file (lesson 11).
 - **Checked, not assumed:** the evidence artifacts on a past `ToolMessage` come back
-  after a restart; two threads writing one file (the coverage fan-out) never hit
-  "database is locked" (WAL mode, 30 s busy timeout); and across THREE real Python
+  after a restart; two threads writing one file (the coverage fan-out) do not hit
+  "database is locked" on ordinary writes (WAL mode, 30 s busy timeout). BUT the first-use setup
+  of two savers at once DID (SqliteSaver creates its tables and switches to WAL lazily, and SQLite
+  refuses that immediately, without waiting): fixed by setting up at creation, serially
+  (`create_checkpointer`); found 8 times in 40 runs of the concurrency test, which a single full-suite
+  pass had missed; and across THREE real Python
   processes a follow-up kept its intent, standalone question and agent history while
   a different session id started clean. The restart tests also fail if the
   checkpointer ignores the file or the router maps are plain dicts (both tried).
@@ -894,6 +898,8 @@ uvicorn main:app --reload
 | `.github/workflows/ci.yml`  | CI: offline `pytest` on push to main and on PRs (no key, no data) |
 | `tests/integration/golden.py` | Golden + behaviour cases (categories, dev/held-out split), `evaluate()`; live tests beside it |
 | `tests/integration/baselines/` | Recorded eval results (date, command, per-case ranks) |
+| `tests/integration/test_live_behavior.py` | Live end-to-end tier for behaviour (G, K) and lay-wording (H) cases |
+| `tests/integration/stability.py` | Asks one case N times: how often is the needed wording retrieved? (costs N questions) |
 | `tests/test_golden_data.py` | Offline checks of the golden set and harness          |
 | `tests/test_loader_boilerplate.py` | Header/footer stripping tests              |
 | `tests/conftest.py`, `tests/fakes.py` | Offline safety net; shared fakes             |
