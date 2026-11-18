@@ -169,7 +169,9 @@ python -m tests.integration.stability <case-id> -n 4   # how often is it retriev
 
 **Cost:** the `full` tier calls GPT-4o several times per question, about 3 to 6 cents
 each, so the whole set is roughly a dollar and a half. Run the cases a change can
-affect (`-k`), not everything, and use the retrieval tier for retrieval changes.
+affect (`-k`), not everything, and use the retrieval tier for retrieval changes. A live
+run stops itself when it has spent `LIVE_EVAL_BUDGET_USD` (default $1.00) and prints what
+it spent, so a full run needs the budget raised on purpose.
 
 Run it after any change to retrieval, chunking or prompts; the run prints the
 current result, so trust that over any number written down here. Cases that
@@ -199,6 +201,7 @@ src/agents/*_agent.py       Coverage, Exclusions and Claims specialists
 src/agents/tools.py         retrieval tools that return evidence records
 src/agents/results.py       typed results, quote check, confidence
 src/agents/sessions.py      SQLite-backed conversation state
+src/cost.py                 per-question cost tracking, the daily spending cap
 src/agents/guardrails.py    injection check, PII scrubbing, low-confidence warning
 src/tracing.py              optional LangSmith tracing
 tests/                      offline tests; tests/integration/ holds the live eval
@@ -216,7 +219,10 @@ tests/                      offline tests; tests/integration/ holds the live eva
   outside the 4 chunks a search returns. A handful of questions in the eval set pass
   some runs and miss others, and a miss can produce a wrong answer, so check anything
   that matters against the policy text. Measured in `tests/integration/baselines/`.
-- Each question costs roughly 3 to 6 cents of OpenAI usage (several GPT-4o calls).
+- Each question costs roughly 3 to 6 cents of OpenAI usage (several GPT-4o calls). It is
+  measured and logged per question, a daily spending cap (`DAILY_BUDGET_USD`) makes `/ask`
+  answer HTTP 429 once it is reached, and overlong questions are refused (HTTP 400). See
+  `.env.example`.
 - No authentication, rate limiting or multi-tenancy.
 - Confidence says how well grounded an answer is, not whether it is complete or
   right, and the injection check is a tripwire, not a defence.

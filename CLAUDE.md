@@ -763,6 +763,28 @@ exclusions section restated the lock grant and its $500 limit).
   pass (5 retrieval misses: icy driveway, burglary, vandalized car, selling the house, code upgrade;
   the first and last two are flaky run to run, burglary is the known routing case).
 
+### 38. Cost governance: measure every question, cap the day, cap the live run
+About $34 of credit went on roughly 650 pipeline questions in one stretch, mostly repeated live runs,
+before anyone noticed. Nothing in the system knew what a question cost. `src/cost.py` now does:
+- **Per-question accounting:** `track()` is a langchain callback attached through a ContextVar, so it
+  sees EVERY model call in the request, including the worker threads of the coverage fan-out (they
+  inherit the context via `submit_in_context`). Tokens are priced from `PRICES_PER_MILLION` (a
+  November 2026 snapshot; an unknown model is priced as gpt-4o, never cheaper than it is). The
+  result is on `RouterResult.usage`, logged ("Cost: $0.0381 (6 model calls ...); today $0.04"),
+  added to the trace, and warned about above 25 cents. Measured live: a broad question, $0.038.
+- **A daily cap:** `DAILY_BUDGET_USD` (unset = off). Spend per UTC day lives in the sessions SQLite file,
+  so it survives a restart; `check_budget()` runs before any model call and `/ask` answers HTTP 429.
+- **A length limit:** `MAX_QUESTION_CHARS` (default 1000) refuses with HTTP 400, because the question is
+  resent to GPT-4o on every search step.
+- **A live-eval budget:** `tests/integration/conftest.py` stops a pytest run once it has spent
+  `LIVE_EVAL_BUDGET_USD` (default $1.00) and prints the total, so a full 31-case run (about $1.50) needs
+  the budget raised on purpose. A conftest in a SUBFOLDER does not get `pytest_sessionstart`; the guard
+  initialises lazily in its fixture instead.
+- Order in `route_and_answer`: injection check, length check, budget check, then `track()` around the routing.
+- Not built: caching repeated searches, a per-request token ceiling (the step cap bounds it), and exposing cost
+  in the API response (kept internal on purpose). The cost-versus-quality experiment (a smaller model for
+  the agents' search steps) is separate and not done.
+
 ---
 
 ## Decisions & Lessons Learned (Stage 1)
@@ -892,6 +914,7 @@ uvicorn main:app --reload
 | `src/agents/tools.py`       | Specialists' retrieval tools returning evidence artifacts |
 | `src/rag/structure.py`      | Page / section / kind metadata for chunks             |
 | `src/agents/sessions.py`    | SQLite-backed sessions: specialist checkpointers + router state |
+| `src/cost.py`, `tests/test_cost.py` | Per-question cost tracking, daily spend cap, offline tests |
 | `tests/test_sessions.py`    | Offline restart / isolation / concurrency tests       |
 | `src/tracing.py`            | LangSmith helpers: annotate, context-safe submit, summaries |
 | `tests/test_tracing.py`     | Offline trace-shape tests (recording client)          |
