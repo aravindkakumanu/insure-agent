@@ -48,7 +48,13 @@ from langsmith import traceable
 from pydantic import BaseModel, Field
 
 from src.agents import claims_agent, coverage_agent, exclusions_agent
-from src.agents.guardrails import apply_output_guardrails, check_prompt_injection, scrub_pii
+from src.agents.guardrails import (
+    apply_output_guardrails,
+    check_prompt_injection,
+    check_question_length,
+    scrub_pii,
+)
+from src.cost import check_budget, record, track
 from src.agents.sessions import SessionMap
 from src.agents.results import (
     AgentResult,
@@ -531,14 +537,28 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
     Classify the question, run the right specialist(s), and return one result.
 
     The RouterResult's `agent` names what handled it: "coverage+exclusions",
-    "exclusions", or "claims".
+    "exclusions", "claims", "out_of_scope" or "not_in_policy". Its `usage` says what the
+    question cost; the cost is also logged and added to today's total (src/cost.py).
 
     Raises:
-        GuardrailViolation: the question looks like a prompt injection. Checked
-            first, so nothing (classifier, agents, session state) sees it.
+        GuardrailViolation: the question looks like a prompt injection, or is too long.
+            Checked first, so nothing (classifier, agents, session state) sees it.
+        BudgetExceeded: today's spending cap (DAILY_BUDGET_USD) has been reached.
     """
     check_prompt_injection(question)
+    check_question_length(question)
+    check_budget()
 
+    with track() as tracker:
+        result = _route_and_answer(question, session_id)
+    usage = tracker.usage()
+    record(usage)
+    annotate(cost_usd=round(usage.cost_usd, 5), model_calls=usage.calls)
+    return replace(result, usage=usage)
+
+
+def _route_and_answer(question: str, session_id: Optional[str]) -> RouterResult:
+    """The routing itself; `route_and_answer` adds the checks and the cost accounting."""
     if session_id is None:
         session_id = str(uuid.uuid4())
 

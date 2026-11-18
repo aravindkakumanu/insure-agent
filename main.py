@@ -29,6 +29,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from src.agents.guardrails import GuardrailViolation, install_log_scrubbing
+from src.cost import BudgetExceeded
 
 # Load .env FIRST — so OPENAI_API_KEY is available when LangChain initialises
 load_dotenv()
@@ -132,6 +133,8 @@ def ask_question(body: QuestionRequest) -> QuestionResponse:
         )
     except GuardrailViolation as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except BudgetExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Error in router / specialist agents")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

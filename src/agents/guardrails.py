@@ -23,6 +23,7 @@ LIMITS - read before relying on these:
 """
 
 import logging
+import os
 import re
 from dataclasses import replace
 from typing import Optional
@@ -64,6 +65,31 @@ _INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         re.compile(r"\bsay\s+(?:that\s+)?the\s+policy\s+covers\s+(?:everything|all)\b"),
     ),
 ]
+
+
+DEFAULT_MAX_QUESTION_CHARS = 1000
+
+
+def max_question_chars() -> int:
+    """Longest question accepted (MAX_QUESTION_CHARS, default 1000). Read per call for tests."""
+    try:
+        return int(os.environ.get("MAX_QUESTION_CHARS", DEFAULT_MAX_QUESTION_CHARS))
+    except ValueError:
+        return DEFAULT_MAX_QUESTION_CHARS
+
+
+def check_question_length(question: str) -> None:
+    """
+    Raise GuardrailViolation for an overlong question. Every search step resends the question
+    to GPT-4o, so a very long one costs more on every step (and is a cheap way to run up
+    someone else's bill). A real question about a policy is a sentence or two.
+    """
+    limit = max_question_chars()
+    if len(question) > limit:
+        raise GuardrailViolation(
+            f"Your question is too long ({len(question)} characters; the limit is {limit}). "
+            "Please shorten it to the specific thing you want to know."
+        )
 
 
 def check_prompt_injection(question: str) -> None:

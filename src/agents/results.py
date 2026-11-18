@@ -38,6 +38,8 @@ from typing import Iterable, Literal, Sequence, TypedDict
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
+from src.cost import Usage
+
 Confidence = Literal["high", "medium", "low"]
 
 _CONFIDENCE_RANK: dict[str, int] = {"low": 0, "medium": 1, "high": 2}
@@ -105,6 +107,7 @@ class RouterResult:
     results: tuple[AgentResult, ...]  # per-specialist breakdown
     citations: tuple[Citation, ...] = ()  # page/section of every retrieved chunk
     questions: dict[str, str] = field(default_factory=dict)  # agent -> question it got
+    usage: Usage = field(default_factory=Usage)  # tokens and estimated dollars (src/cost.py)
 
 
 # ---------------------------------------------------------------------------
