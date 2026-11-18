@@ -86,6 +86,10 @@ class AgentResult:
     evidence: tuple[Evidence, ...] = ()  # chunks retrieved this turn, de-duplicated
     unverified_quotes: tuple[str, ...] = ()  # quotes not found in the evidence
     queries: tuple[str, ...] = ()  # searches the agent ran, e.g. "search_policy: burst pipe"
+    # True when the agent reported that the policy has nothing on the question (it began its
+    # reply with NOT_ADDRESSED: or NONE_FOUND:). `answer` is then just the explanation, with the
+    # marker removed, and a merged answer leaves this section out (see router.merge_results).
+    not_addressed: bool = False
 
 
 @dataclass(frozen=True)

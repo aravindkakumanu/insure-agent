@@ -36,6 +36,7 @@ specialist's history are stored in SQLite (sessions.py), so they survive a resta
 """
 
 import logging
+import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
@@ -53,6 +54,8 @@ from src.agents.results import (
     AgentResult,
     Confidence,
     RouterResult,
+    _extract_quotes,
+    _normalise,
     citations_for,
     weakest_confidence,
 )
@@ -348,6 +351,50 @@ _LOW_CONFIDENCE_NOTES: dict[str, str] = {
 }
 
 
+_GAP_MARKER = re.compile(r"^\s*(NOT_ADDRESSED|NONE_FOUND)\s*[:\-]\s*", re.IGNORECASE)
+
+# Said under the section that IS shown when the other specialist found nothing.
+_GAP_NOTES: dict[str, str] = {
+    "coverage": "The policy text I found doesn't address this as a coverage.",
+    "exclusions": "No exclusion or limitation was found for this.",
+}
+
+
+def mark_gap(result: AgentResult) -> AgentResult:
+    """
+    Turn a NOT_ADDRESSED: / NONE_FOUND: reply into `not_addressed=True` with the marker removed.
+
+    The marker is internal: it must never reach the user, so it is stripped even when the
+    result is shown alone. A reply that does not start with a marker is returned unchanged.
+    """
+    match = _GAP_MARKER.match(result.answer)
+    if not match:
+        return result
+    return replace(result, answer=result.answer[match.end():].strip(), not_addressed=True)
+
+
+def restates_coverage(result: AgentResult) -> bool:
+    """
+    True when an Exclusions answer only quotes COVERAGE text: it has at least one verbatim quote
+    and every quote it can match comes from chunks outside the exclusions regions. Live finding:
+    asked about replacing locks after a theft, the Exclusions Agent quoted the lock-replacement
+    grant (and its $500 limit) under "What is NOT covered", duplicating the Coverage section.
+    The prompt asks it not to; this is the deterministic backstop.
+    """
+    if result.agent_name != "exclusions" or result.not_addressed:
+        return False
+    matched = 0
+    for quote in _extract_quotes(result.answer):
+        target = _normalise(quote)
+        homes = [e for e in result.evidence if target and target in _normalise(e["text"])]
+        if not homes:
+            continue  # an unverified quote proves nothing either way
+        if any(e["in_exclusions_section"] for e in homes):
+            return False
+        matched += 1
+    return matched > 0
+
+
 def _quote_note(result: AgentResult) -> str:
     """Caution when the answer quotes policy wording that wasn't retrieved."""
     n = len(result.unverified_quotes)
@@ -414,11 +461,22 @@ def merge_results(
         redundant_flags.append(bool(ids) and ids <= seen_chunks)
         seen_chunks |= ids
 
+    if len(results) > 1:  # alone, an Exclusions answer is the whole answer: keep it
+        results = [
+            replace(r, not_addressed=True, answer="") if restates_coverage(r) else r for r in results
+        ]
+    shown = [(r, red) for r, red in zip(results, redundant_flags) if not r.not_addressed]
     if len(results) == 1:
         note = _quote_note(results[0])
         answer = results[0].answer + (f"\n\n_{note}_" if note else "")
+    elif not shown:
+        # Nothing to show: one plain statement instead of several empty headed sections.
+        answer = " ".join(dict.fromkeys(r.answer for r in results if r.answer))
     else:
-        answer = "\n\n".join(_section(r, red) for r, red in zip(results, redundant_flags))
+        answer = "\n\n".join(_section(r, red) for r, red in shown)
+        for r in results:
+            if r.not_addressed:
+                answer += f"\n\n_{_GAP_NOTES.get(r.agent_name, 'Nothing was found for this.')}_"
 
     effective: list[Confidence] = [
         weakest_confidence([r.confidence, "medium"]) if red else r.confidence
@@ -551,7 +609,7 @@ def route_and_answer(question: str, session_id: Optional[str] = None) -> RouterR
             ]
             results = [f.result() for f in futures]
 
-    results = [_discard_ungrounded(r) for r in results]
+    results = [mark_gap(_discard_ungrounded(r)) for r in results]
     merged = apply_output_guardrails(merge_results(results, session_id, intent, questions))
     if note:
         merged = replace(merged, answer=f"{note}\n\n{merged.answer}")

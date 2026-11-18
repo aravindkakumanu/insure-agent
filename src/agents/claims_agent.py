@@ -85,8 +85,8 @@ How to answer:
   - Before concluding that the policy is silent, search again with different
     wording: the policy uses formal insurance terms, not everyday words, so one
     search that finds nothing relevant proves nothing
-  - If the retrieved passages still do not address the question, say so in one or
-    two sentences and stop. Do not fill the answer with unrelated coverages,
+  - If the retrieved passages still do not address the question, begin your reply
+    with NOT_ADDRESSED: and then say so in one or two sentences, and stop. Do not fill the answer with unrelated coverages,
     exclusions or conditions, and never answer from general knowledge
   - A related provision is not an answer. If the policy only has something
     nearby (a different kind of protection, a similar limit), say plainly that

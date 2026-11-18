@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 import src.agents.langgraph_agent as stage2
 from src.agents import claims_agent, coverage_agent, exclusions_agent, router, tools
 from src.agents.results import AgentResult, Citation, RouterResult
-from src.agents.router import RoutingDecision, merge_results
+from src.agents.router import RoutingDecision, mark_gap, merge_results
 from tests.fakes import (
     FakeRouterLLM,
     LoopingLLM,
@@ -645,7 +645,7 @@ def test_every_specialist_prompt_says_to_state_that_the_policy_is_silent(module)
     """Live finding: the agents padded (auto deductible) or stretched a nearby provision
     (credit monitoring) instead of saying the policy does not address the question."""
     prompt = " ".join(module.SYSTEM_PROMPT.split())
-    assert "If the retrieved passages still do not address the question, say so" in prompt
+    assert "If the retrieved passages still do not address the question, begin your reply with NOT_ADDRESSED:" in prompt
     assert "Before concluding that the policy is silent, search again with different wording" in prompt
     assert "never answer from general knowledge" in prompt
     assert "A related provision is not an answer" in prompt
@@ -865,3 +865,118 @@ def test_the_confirmation_is_only_asked_when_the_cheap_model_wants_to_refuse(fak
     router.route_and_answer("Is fire covered?", "s1")
 
     assert confirm.seen == []
+
+
+# ---------------------------------------------------------------------------
+# Layout: leave out sections that have nothing to say (live findings: the keys answer repeated
+# its coverage under "NOT covered"; credit monitoring printed two sections that both said "no")
+# ---------------------------------------------------------------------------
+
+
+def _gap(name: str, text: str, marker: str) -> AgentResult:
+    return mark_gap(make_result(name, answer=f"{marker}: {text}"))
+
+
+def test_the_gap_marker_is_stripped_and_flagged_even_when_shown_alone() -> None:
+    result = mark_gap(make_result("coverage", answer="NOT_ADDRESSED: The policy does not cover that."))
+    assert result.not_addressed and result.answer == "The policy does not cover that."
+    other = mark_gap(make_result("exclusions", answer="none_found - No exclusion applies."))
+    assert other.not_addressed and other.answer == "No exclusion applies."
+    plain = make_result("coverage", answer="The policy covers fire. NOT_ADDRESSED: inside text")
+    assert mark_gap(plain) is plain and not plain.not_addressed
+
+
+def test_an_empty_exclusions_section_is_replaced_by_one_line() -> None:
+    covered = make_result("coverage", answer="Locks are covered up to $500.")
+    none_found = _gap("exclusions", "Nothing excludes it.", "NONE_FOUND")
+
+    merged = merge_results([covered, none_found], "s", "coverage")
+
+    assert "What IS covered" in merged.answer and "Locks are covered up to $500." in merged.answer
+    assert "What is NOT covered" not in merged.answer and "Nothing excludes it" not in merged.answer
+    assert "No exclusion or limitation was found for this." in merged.answer
+
+
+def test_an_empty_coverage_section_is_dropped_but_the_exclusions_stay() -> None:
+    gap = _gap("coverage", "Nothing on this.", "NOT_ADDRESSED")
+    excl = make_result("exclusions", answer="Flood is excluded.")
+
+    merged = merge_results([gap, excl], "s", "coverage")
+
+    assert "What IS covered" not in merged.answer
+    assert "What is NOT covered" in merged.answer and "Flood is excluded." in merged.answer
+    assert "doesn't address this as a coverage" in merged.answer
+
+
+def test_two_empty_sections_become_one_plain_statement_without_headings() -> None:
+    a = _gap("coverage", "The policy has no credit monitoring.", "NOT_ADDRESSED")
+    b = _gap("exclusions", "The policy has no credit monitoring.", "NOT_ADDRESSED")
+
+    merged = merge_results([a, b], "s", "coverage")
+
+    assert merged.answer == "The policy has no credit monitoring."  # the repeated sentence once
+    assert "**" not in merged.answer
+
+
+def test_a_single_empty_result_shows_the_sentence_without_the_marker() -> None:
+    merged = merge_results([_gap("claims", "The policy does not say.", "NOT_ADDRESSED")], "s", "claims")
+    assert merged.answer == "The policy does not say." and "NOT_ADDRESSED" not in merged.answer
+
+
+def test_route_and_answer_never_leaks_the_marker(monkeypatch) -> None:
+    monkeypatch.setattr(router, "_get_router_llm", lambda: FakeRouterLLM("coverage", "C?", "E?"))
+    monkeypatch.setattr(coverage_agent, "answer_question", lambda q, s: make_result("coverage", answer="NOT_ADDRESSED: Nothing.", session_id=s))
+    monkeypatch.setattr(exclusions_agent, "answer_question", lambda q, s: make_result("exclusions", answer="NONE_FOUND: Nothing either.", session_id=s))
+
+    result = router.route_and_answer("Q", "s1")
+
+    assert "NOT_ADDRESSED" not in result.answer and "NONE_FOUND" not in result.answer
+    assert all("NOT_ADDRESSED" not in r.answer and "NONE_FOUND" not in r.answer for r in result.results)
+
+
+def test_the_exclusions_prompt_defines_the_none_found_marker() -> None:
+    prompt = " ".join(exclusions_agent.SYSTEM_PROMPT.split())
+    assert "begin your reply with NONE_FOUND:" in prompt
+    assert "Never restate what the policy covers as if it were an exclusion" in prompt
+
+
+LOCK = "we will pay under Dwelling Protection the reasonable expenses you incur to replace or re-key exterior door locks"
+
+
+def _exclusions_quoting(text: str, *, in_exclusions_section: bool) -> AgentResult:
+    return make_result(
+        "exclusions",
+        answer=f'Lock replacement: "{text}". That is up to $500.',
+        evidence=(make_evidence(text=f"x {text} y", in_exclusions_section=in_exclusions_section),),
+    )
+
+
+def test_an_exclusions_section_that_only_quotes_coverage_text_is_dropped_from_a_merge() -> None:
+    coverage = make_result("coverage", answer="Locks are covered up to $500.")
+    restating = _exclusions_quoting(LOCK, in_exclusions_section=False)
+
+    merged = merge_results([coverage, restating], "s", "coverage")
+
+    assert "What is NOT covered" not in merged.answer
+    assert "No exclusion or limitation was found for this." in merged.answer
+
+
+def test_an_exclusions_section_quoting_an_exclusions_region_is_kept() -> None:
+    coverage = make_result("coverage", answer="Water damage is covered.")
+    real = _exclusions_quoting("We do not cover loss caused by flood including surface water", in_exclusions_section=True)
+
+    merged = merge_results([coverage, real], "s", "coverage")
+
+    assert "What is NOT covered" in merged.answer
+
+
+def test_an_exclusions_answer_with_no_quotes_is_kept() -> None:
+    merged = merge_results(
+        [make_result("coverage", answer="Covered."), make_result("exclusions", answer="Flood is excluded.")], "s", "coverage"
+    )
+    assert "What is NOT covered" in merged.answer
+
+
+def test_an_exclusions_answer_shown_alone_is_never_dropped() -> None:
+    merged = merge_results([_exclusions_quoting(LOCK, in_exclusions_section=False)], "s", "exclusions")
+    assert "Lock replacement" in merged.answer
