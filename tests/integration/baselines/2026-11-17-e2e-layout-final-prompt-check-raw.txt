@@ -1,0 +1,67 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 26 items / 23 deselected / 3 selected
+
+tests/integration/test_live_behavior.py::test_behavior_case[near-miss-credit-monitoring] 
+=== near-miss-credit-monitoring: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: credit monitoring after identity theft
+    [exclusions] searched -> search_exclusions: credit monitoring identity theft
+    ANSWER:
+      The policy does not specifically address coverage for credit monitoring services after identity theft. The retrieved sections discuss coverage related to unauthorized use of credit cards, debit cards, and similar financial instruments, but do not mention credit monitoring services. The retrieved policy text does not specifically address exclusions, limitations, or conditions related to credit monitoring after identity theft. The policy sections found pertain to unauthorized use of credit cards and related financial instruments, but do not mention credit monitoring services.
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burst-pipes-on-vacation] 
+=== h-burst-pipes-on-vacation: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: water damage from burst pipes coverage limits conditions
+    [exclusions] searched -> search_exclusions: water damage from burst pipes
+    [exclusions] searched -> search_exclusions: frozen pipes water damage
+    [exclusions] searched -> search_exclusions: plumbing leaks water damage exclusions
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers water damage from burst pipes under certain conditions. Specifically, it covers the "sudden and accidental escape of water or steam from a plumbing, heating or air conditioning system, household appliance or fire protective sprinkler system within your dwelling." This means if a pipe bursts suddenly and accidentally, causing water damage, the policy will cover the direct physical damage caused by the water or steam.
+      
+      Additionally, if the water damage is covered, the policy will also cover the cost of tearing out and replacing any part of your dwelling necessary to repair the system or appliance. However, it does not cover damage to the defective system or appliance from which the water escaped.
+      
+      There is also a provision for mold, fungus, wet rot, or dry rot remediation as a direct result of a covered water loss. The policy will pay up to $5,000 for remediation, which includes treatment, removal, or disposal necessary to complete repair or replacement of the damaged property. This also covers any reasonable increase in living expenses if the residence becomes uninhabitable due to these conditions. However, this remediation coverage does not increase the limits of liability under the main dwelling or personal property protections.
+      
+      It's important to note that these coverages are subject to the terms, conditions, and limitations of the policy, and the specific limits of liability for the dwelling and personal property protections apply.
+      
+      **What is NOT covered**
+      
+      Here are the exclusions, limitations, and conditions related to water damage from burst pipes:
+      
+      1. **Freezing Conditions**: The policy does not cover loss caused by freezing of plumbing, heating, air conditioning systems, or household appliances if the building is vacant, unoccupied, or under construction, unless reasonable care is taken to maintain heat or shut off and drain the water systems (Source: apc220-ho-policy-jacket.pdf, page 13).
+      
+      2. **Seepage and Leakage**: Continuous or repeated seepage or leakage of water over weeks, months, or years from plumbing, heating, air conditioning, or fire protection systems, or from domestic appliances, is not covered (Source: apc220-ho-policy-jacket.pdf, page 13).
+      
+      3. **Backup and Overflow**: Water that backs up through sewers or drains, or overflows from a sump pump or similar systems, is not covered (Source: apc220-ho-policy-jacket.pdf, page 14).
+      
+      4. **Ground Water**: Water on or below the surface of the ground, regardless of its source, is not covered. This includes water that exerts pressure on or seeps through any part of the residence premises (Source: apc220-ho-policy-jacket.pdf, page 14).
+      
+      5. **Mold, Fungus, Wet Rot, and Dry Rot**: Loss caused by mold, fungus, wet rot, or dry rot is excluded unless it is a direct result of a covered water loss, in which case remediation is limited to $5,000 (Source: apc220-ho-policy-jacket.pdf, page 20).
+      
+      6. **Negligence**: The policy excludes coverage if the insured fails to take reasonable steps to save and preserve property when it is endangered by a covered cause of loss (Source: apc220-ho-policy-jacket.pdf, page 15).
+      
+      These exclusions and conditions highlight the importance of maintaining the property and taking preventive measures to avoid water damage from burst pipes.
+    [PASS] h-burst-pipes-on-vacation  ranks: #1
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-stolen-keys-locks] 
+=== h2-stolen-keys-locks: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: changing locks stolen keys coverage
+    [exclusions] searched -> search_exclusions: changing locks after theft
+    [exclusions] searched -> search_exclusions: lock replacement exclusion
+    [exclusions] searched -> search_exclusions: stolen keys lock change limitation
+    [exclusions] searched -> search_exclusions: lock change condition stolen keys
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers the replacement or re-keying of exterior door locks at your residence if a key is stolen as part of a covered theft loss. This coverage is provided under Dwelling Protection–Coverage A. The policy will pay for the reasonable expenses you incur to replace or re-key the locks with locks or cylinders of like kind and quality. The limit of liability for this coverage following any one theft loss is $500.
+      
+      _No exclusion or limitation was found for this._
+    [PASS] h2-stolen-keys-locks       ranks: #2
+PASSED
+
+====================== 3 passed, 23 deselected in 15.06s =======================

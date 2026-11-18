@@ -1,0 +1,186 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 26 items / 22 deselected / 4 selected
+
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burst-pipes-on-vacation] 
+=== h-burst-pipes-on-vacation: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: water damage from burst pipes coverage limits conditions
+    [exclusions] searched -> search_exclusions: water damage from burst pipes
+    [exclusions] searched -> search_exclusions: frozen pipes water damage
+    [exclusions] searched -> search_exclusions: plumbing leaks water damage exclusions
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    [exclusions] searched -> search_exclusions: pipe burst exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers water damage from burst pipes under certain conditions. Specifically, it covers the "sudden and accidental escape of water or steam from a plumbing, heating or air conditioning system, household appliance or fire protective sprinkler system within your dwelling." This means if a pipe bursts suddenly and accidentally, causing water damage, the policy will cover the direct physical damage caused by the water or steam.
+      
+      Additionally, if the water or steam causes damage to covered property, the policy will cover the cost of tearing out and replacing any part of your dwelling necessary to repair the system or appliance. However, this does not include damage to the defective system or appliance from which the water escaped.
+      
+      There is also a provision for mold, fungus, wet rot, or dry rot remediation as a direct result of a covered water loss. The policy will pay up to $5,000 for remediation, which includes treatment, removal, or disposal necessary to complete repair or replacement of damaged property. This also covers any reasonable increase in living expenses if the residence becomes uninhabitable due to these conditions. However, this remediation coverage does not increase the limits of liability under the main dwelling or personal property protections.
+      
+      It's important to note that these coverages are subject to the terms, conditions, and limitations of the policy, and the specific limits of liability for the dwelling and personal property protections apply.
+      
+      **What is NOT covered**
+      
+      Here are the exclusions, limitations, and conditions related to water damage from burst pipes:
+      
+      1. **Freezing Exclusion**: The policy does not cover loss caused by the freezing of plumbing, heating, air conditioning systems, or household appliances if the building is vacant, unoccupied, or under construction unless reasonable care is taken to maintain heat or shut off and drain the water systems. This is found in the section on "Losses We Do Not Cover Under Coverage A, Coverage B And Coverage C."
+      
+      2. **Seepage Exclusion**: Continuous or repeated seepage or leakage of water over weeks, months, or years from plumbing, heating, air conditioning, or fire protection systems, or from within domestic appliances, is not covered. This is also detailed under "Losses We Do Not Cover Under Coverage A, Coverage B And Coverage C."
+      
+      3. **Backup and Overflow Exclusion**: Water that backs up through sewers or drains or overflows from a sump pump or similar system is not covered. This is specified in the same section.
+      
+      4. **Mold, Fungus, Wet Rot, and Dry Rot Exclusion**: Loss caused by mold, fungus, wet rot, or dry rot is excluded unless it is a direct result of a covered water loss, in which case remediation is limited to $5,000. This is outlined in the "Mold, Fungus, Wet Rot And Dry Rot Remediation" condition.
+      
+      5. **Reasonable Care Requirement**: If the building is vacant, unoccupied, or under construction, coverage for freezing is contingent upon taking reasonable care to maintain heat or shut off and drain the water systems.
+      
+      These exclusions and conditions mean that while some water damage from burst pipes may be covered, there are specific circumstances and maintenance requirements that must be met to ensure coverage.
+    [PASS] h-burst-pipes-on-vacation  ranks: #1
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-icy-driveway-lawsuit] 
+=== h-icy-driveway-lawsuit: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: liability coverage for slip and fall on icy driveway
+    [coverage] searched -> search_policy: liability coverage for injuries on property
+    [exclusions] searched -> search_exclusions: liability for slip and fall on icy driveway
+    [exclusions] searched -> search_exclusions: exclusions for injuries on property
+    [exclusions] searched -> search_exclusions: conditions for liability coverage
+    [exclusions] searched -> search_exclusions: limitations for personal liability
+    ANSWER:
+      **What IS covered**
+      
+      Your insurance policy provides coverage under "Family Liability Protection" for bodily injuries that occur on your property, such as someone slipping on your icy driveway. This coverage applies when the injured person is on the insured premises with your permission or if the injury arises from a condition on the insured premises or immediately adjoining ways.
+      
+      The policy will cover the costs associated with the claim or defense of any suit against you, including:
+      - All costs incurred in the settlement of any claim or defense of any suit.
+      - Interest on damages awarded until the amount is paid or deposited in court.
+      - Premiums on bonds required in any suit defended by the insurer.
+      - Up to $150 per day for loss of wages and salary if you are required to attend trials and hearings.
+      - Any other reasonable expenses incurred at the insurer's request.
+      
+      Additionally, the policy includes "Emergency First Aid" coverage, which pays for reasonable expenses incurred by you for first aid to other persons at the time of an accident involving bodily injury covered under the policy.
+      
+      It's important to note that this coverage is subject to the limits of liability specified in your policy declarations.
+      
+      **What is NOT covered**
+      
+      Here are the exclusions, limitations, and conditions that apply if someone slipped on your icy driveway and is threatening to sue you:
+      
+      1. **Weather Conditions**: The policy excludes coverage for losses caused by weather conditions that contribute to a cause of loss that is otherwise excluded. This means if the icy condition is part of a broader weather-related exclusion, it might not be covered.
+      
+      2. **Failure to Maintain Property**: The policy excludes losses resulting from the failure of an insured person to take all reasonable steps to save and preserve property when it is endangered by a cause of loss covered by the policy. If you did not take reasonable steps to clear the ice, this could affect coverage.
+      
+      3. **Business Activities**: The policy does not cover bodily injury to any person on the insured premises because of a business activity or professional service conducted there. If the slip and fall occurred in connection with a business activity, this exclusion might apply.
+      
+      4. **Intentional or Criminal Acts**: The policy excludes coverage for bodily injury or property damage intended by, or which may reasonably be expected to result from, the intentional or criminal acts or omissions of any insured person.
+      
+      5. **Conditions for Liability Coverage**: You must promptly notify the insurer of the incident, send any legal papers relating to the accident, and cooperate with the insurer in any matter concerning a claim or suit. Failure to meet these conditions could affect coverage.
+      
+      These exclusions and conditions highlight the importance of maintaining your property and promptly addressing hazardous conditions like ice to avoid potential liability issues.
+    [FAIL] h-icy-driveway-lawsuit     ranks: MISSING
+FAILED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-baseball-neighbors-window] 
+=== h-baseball-neighbors-window: agent=coverage+exclusions confidence=medium unverified_quotes=1
+    [coverage] searched -> search_policy: liability coverage for damage caused by children
+    [exclusions] searched -> search_exclusions: damage caused by children
+    [exclusions] searched -> search_exclusions: liability for children
+    [exclusions] searched -> search_exclusions: damage to neighbor's property
+    [exclusions] searched -> search_exclusions: intentional acts by children
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers damage caused by your child throwing a baseball through the neighbor's window under Family Liability Protection—Coverage X. This coverage pays for damages that an insured person becomes legally obligated to pay due to property damage arising from an occurrence to which the policy applies.
+      
+      The policy states that it will pay damages for property damage arising from an occurrence, and it will also provide a defense with counsel of its choice if an insured person is sued for these damages. However, the policy is not obligated to defend any suit or pay any claim or judgment after the limit of liability has been exhausted.
+      
+      The total liability under Family Liability Protection—Coverage X for damages resulting from one occurrence will not exceed the Limit Of Liability shown on the Policy Declarations. All property damage resulting from continuous or repeated exposure to the same general conditions is considered the result of one occurrence.
+      
+      In summary, the policy covers the damage caused by your child throwing a baseball through the neighbor's window, subject to the limit of liability specified in the Policy Declarations.
+      
+      **What is NOT covered**
+      
+      The policy includes several exclusions and conditions that may apply to damage caused by your child throwing a baseball through the neighbor's window:
+      
+      1. **Intentional Acts Exclusion**:
+         - "We do not cover any bodily injury or property damage intended by, or which may reasonably be expected to result from the intentional or criminal acts or omissions of, any insured person." This exclusion applies even if the insured person lacks the mental capacity to govern their conduct or if the damage is of a different kind or degree than intended or reasonably expected. (Source: apc220-ho-policy-jacket.pdf, pages 20-23)
+         - This means if the act of throwing the baseball was intentional, the damage may not be covered.
+      
+      2. **Damage to Property of Others**:
+         - The policy states, "We will not pay for property damage... to property intentionally damaged by an insured person who has attained the age of 13." (Source: apc220-ho-policy-jacket.pdf, pages 20-23)
+         - If your child is 13 or older and the act was intentional, this exclusion would apply.
+      
+      3. **General Exclusions**:
+         - The policy excludes coverage for "intentional or criminal acts of or at the direction of any insured person, if the loss that occurs may be reasonably expected to result from such acts." (Source: apc220-ho-policy-jacket.pdf, pages 14-15)
+         - This reinforces the exclusion of intentional acts, regardless of whether the insured person is charged with a crime.
+      
+      These exclusions suggest that if the act was intentional, especially by a child aged 13 or older, the damage may not be covered under the policy. If the act was accidental, these exclusions might not apply, but the specifics of the situation would need to be considered.
+      
+      _Note: 1 quoted passage could not be matched to the retrieved policy text, so treat that wording as unverified._
+    [PASS] h-baseball-neighbors-window ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-stolen-keys-locks] 
+=== h2-stolen-keys-locks: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: changing locks stolen keys coverage
+    [exclusions] searched -> search_exclusions: changing locks after theft
+    [exclusions] searched -> search_exclusions: lock replacement exclusion
+    [exclusions] searched -> search_exclusions: stolen keys lock change
+    [exclusions] searched -> search_exclusions: lock change limitation
+    [exclusions] searched -> search_exclusions: lock change condition
+    [exclusions] searched -> search_exclusions: purse stolen lock change
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers the replacement or re-keying of exterior door locks at your residence if a key is stolen as part of a covered theft loss. This coverage falls under Dwelling Protection–Coverage A. The policy will pay for the reasonable expenses incurred to replace or re-key the locks with locks or cylinders of like kind and quality. The limit of liability for this coverage following any one theft loss is $500.
+      
+      _No exclusion or limitation was found for this._
+    [PASS] h2-stolen-keys-locks       ranks: #2
+PASSED
+
+=================================== FAILURES ===================================
+_________ test_lay_wording_question_end_to_end[h-icy-driveway-lawsuit] _________
+
+case = GoldenCase(id='h-icy-driveway-lawsuit', question='Someone slipped on my icy driveway and is threatening to sue me. Wha... choice',), expected_agent=None, answer_keywords=(), known_gap='', query=None, category='H', split='dev', any_of=False)
+
+    @pytest.mark.parametrize("case", H_RETRIEVAL, ids=lambda c: c.id)
+    def test_lay_wording_question_end_to_end(case) -> None:
+        from src.agents.router import route_and_answer
+    
+        result = route_and_answer(case.question)
+        _show(case.id, result)
+        evidence = [e for r in result.results for e in r.evidence]
+        retrieval = evaluate(case, evidence)
+        print("    " + retrieval.line())
+>       assert retrieval.passed, retrieval.explain(evidence)
+E       AssertionError: h-icy-driveway-lawsuit: not retrieved: ['we will provide a defense with counsel of our choice']
+E           retrieved 22 chunks:
+E             #1 p9-9 d=1.069 'Falling objects. We do not cover loss to personal property i'
+E             #2 p12-13 d=1.104 '11. Collapse \nWe will cover at the residence premises: \na) t'
+E             #3 p12-12 d=1.149 '6. Temporary Repairs After A Loss \nWe will reimburse you up '
+E             #4 p13-13 d=1.153 'This coverage does not increase the limit of liability that '
+E             #5 p11-11 d=0.901 '3. Debris Removal \nWe will pay reasonable expenses you incur'
+E             #6 p20-23 d=0.924 'Each person who sustains bodily injury is entitled to this \n'
+E             #7 p25-25 d=0.949 '7. Incidental Office, Private School Or Studio–Coverage K \na'
+E             #8 p9-9 d=1.136 'Falling objects. We do not cover loss to personal property i'
+E             #9 p12-13 d=1.288 '11. Collapse \nWe will cover at the residence premises: \na) t'
+E             #10 p13-13 d=1.312 'This coverage does not increase the limit of liability that '
+E             #11 p13-14 d=1.324 'Collapse, except as specifically provided in Section I \nAddi'
+E             #12 p14-15 d=1.375 '2. Water or any other substance that: \na) backs up through s'
+E             #13 p14-14 d=1.403 'Soil conditions, including, but not limited to, \ncorrosive a'
+E             #14 p20-23 d=0.943 'Each person who sustains bodily injury is entitled to this \n'
+E             #15 p24-25 d=0.974 '1. Building Codes–Coverage BC \nWe will pay up to 10% of the '
+E             #16 p15-15 d=0.998 'Vapors, fumes, acids, toxic chemicals, toxic gasses, \ntoxic '
+E             #17 p15-15 d=1.066 'Deductible \nWe will pay when a covered loss exceeds the appl'
+E             #18 p20-20 d=1.082 '19. Mold, Fungus, Wet Rot And Dry Rot Remediation \nAs A Dire'
+E             #19 p25-25 d=1.200 '7. Incidental Office, Private School Or Studio–Coverage K \na'
+E             #20 p25-26 d=1.201 '8. Increased Coverage On Money–Coverage M \nThe limitation on'
+E             #21 p9-9 d=1.251 '3. Motorized land vehicles, including, but not limited to, a'
+E             #22 p7-8 d=1.287 'Satellite dish antennas and their systems, whether or not \na'
+E       assert False
+E        +  where False = EvalResult(case_id='h-icy-driveway-lawsuit', ranks={'we will provide a defense with counsel of our choice': None}, any_of=False).passed
+
+tests/integration/test_live_behavior.py:88: AssertionError
+=========================== short test summary info ============================
+FAILED tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-icy-driveway-lawsuit]
+================= 1 failed, 3 passed, 22 deselected in 24.48s ==================

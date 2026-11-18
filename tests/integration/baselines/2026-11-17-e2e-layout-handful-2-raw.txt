@@ -1,0 +1,103 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.10.0, pytest-9.1.1, pluggy-1.6.0 -- /Users/aravindkakumanu/insure-agent/.venv/bin/python
+rootdir: /Users/aravindkakumanu/insure-agent
+plugins: langsmith-0.14.4, anyio-4.15.1
+collecting ... collected 26 items / 23 deselected / 3 selected
+
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h-burst-pipes-on-vacation] 
+=== h-burst-pipes-on-vacation: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: water damage from burst pipes coverage limits conditions
+    [exclusions] searched -> search_exclusions: water damage from burst pipes
+    [exclusions] searched -> search_exclusions: frozen pipes water damage
+    [exclusions] searched -> search_exclusions: plumbing leaks water damage exclusions
+    [exclusions] searched -> search_exclusions: water damage exclusions
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers water damage from burst pipes under certain conditions. Specifically, it covers the sudden and accidental escape of water or steam from a plumbing, heating, or air conditioning system, household appliance, or fire protective sprinkler system within your dwelling. The policy will cover the direct physical damage caused by the water or steam. Additionally, if the loss to covered property is caused by water or steam not otherwise excluded, the policy will cover the cost of tearing out and replacing any part of your dwelling necessary to repair the system or appliance. However, this does not include damage to the defective system or appliance from which the water escaped.
+      
+      There is also a provision for mold, fungus, wet rot, or dry rot remediation as a direct result of a covered water loss. The policy will pay up to $5,000 for remediation, which includes treatment, removal, or disposal necessary to complete repair or replacement of the damaged property. This also covers any reasonable increase in living expenses if the residence becomes uninhabitable due to these conditions. However, this remediation coverage does not increase the limits of liability under the main dwelling or personal property protections.
+      
+      These coverages are subject to the terms, conditions, and limitations of the policy, and do not increase the overall limit of liability that applies to the covered property.
+      
+      **What is NOT covered**
+      
+      Here are the exclusions, limitations, and conditions that apply to water damage from burst pipes:
+      
+      1. **Freezing Conditions**:
+         - The policy does not cover loss caused by freezing of plumbing, heating, or air conditioning systems, or household appliances if the building is vacant, unoccupied, or under construction unless reasonable care is taken to maintain heat or shut off and drain the water systems. (Source: apc220-ho-policy-jacket.pdf, page 13)
+      
+      2. **Seepage and Leakage**:
+         - Continuous or repeated seepage or leakage of water over weeks, months, or years from plumbing, heating, air conditioning, or fire protection systems, or from within domestic appliances, is not covered. (Source: apc220-ho-policy-jacket.pdf, page 13)
+      
+      3. **Mold, Fungus, Wet Rot, and Dry Rot**:
+         - Loss caused by mold, fungus, wet rot, or dry rot is excluded unless it is a direct result of a covered water loss, in which case remediation is limited to $5,000. (Source: apc220-ho-policy-jacket.pdf, page 20)
+      
+      4. **Water Backup and Overflow**:
+         - Water that backs up through sewers or drains, or overflows from a sump pump or similar system, is not covered. (Source: apc220-ho-policy-jacket.pdf, page 14)
+      
+      5. **Ground Water**:
+         - Water on or below the surface of the ground, regardless of its source, is not covered. This includes water that exerts pressure on or seeps through any part of the residence premises. (Source: apc220-ho-policy-jacket.pdf, page 14)
+      
+      6. **Failure to Maintain Property**:
+         - The policy excludes coverage if the insured fails to take reasonable steps to save and preserve property when it is endangered by a covered cause of loss. (Source: apc220-ho-policy-jacket.pdf, page 14)
+      
+      These exclusions and conditions mean that while some water damage from burst pipes may be covered, there are specific circumstances and types of damage that are not covered under this policy.
+    [PASS] h-burst-pipes-on-vacation  ranks: #1
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-stolen-keys-locks] 
+=== h2-stolen-keys-locks: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: changing locks stolen keys coverage
+    [exclusions] searched -> search_exclusions: changing locks after theft of keys
+    [exclusions] searched -> search_exclusions: lock replacement exclusion
+    [exclusions] searched -> search_exclusions: stolen keys lock change limitation
+    [exclusions] searched -> search_exclusions: conditions for lock replacement after theft
+    ANSWER:
+      **What IS covered**
+      
+      The policy covers the replacement or re-keying of exterior door locks at your residence if a key is stolen as part of a covered theft loss. This coverage falls under Dwelling Protection–Coverage A. The policy will pay for the reasonable expenses you incur to replace or re-key the locks with locks or cylinders of like kind and quality. The limit of liability for this coverage following any one theft loss is $500.
+      
+      **What is NOT covered**
+      
+      The policy provides specific coverage for lock replacement when keys are stolen as part of a covered theft loss. Here are the relevant details:
+      
+      1. **Lock Replacement Coverage**:
+         - "When a key to a lock is stolen as part of a covered theft loss, we will pay under Dwelling Protection–Coverage A the reasonable expenses you incur to replace or re-key exterior door locks at the residence premises with locks or cylinders of like kind and quality. The limit of liability under this coverage following any one theft loss is $500."
+         - This means that if your house keys are stolen, the policy will cover the cost to replace or re-key your exterior door locks, up to a limit of $500.
+      
+      There are no specific exclusions or conditions mentioned in the retrieved passages that would remove or reduce this coverage for changing locks after your keys were stolen.
+    [PASS] h2-stolen-keys-locks       ranks: #2
+PASSED
+tests/integration/test_live_behavior.py::test_lay_wording_question_end_to_end[h2-ground-washed-out] 
+=== h2-ground-washed-out: agent=coverage+exclusions confidence=high unverified_quotes=0
+    [coverage] searched -> search_policy: storm damage coverage for ground under deck
+    [exclusions] searched -> search_exclusions: storm damage to ground under deck
+    [exclusions] searched -> search_exclusions: ground repair under deck storm damage
+    [exclusions] searched -> search_exclusions: exclusions for storm damage to land
+    [exclusions] searched -> search_exclusions: limitations on repairing ground storm damage
+    ANSWER:
+      **What IS covered**
+      
+      The policy provides coverage for storm damage to the ground under your deck under certain conditions. Specifically, if a sudden and accidental direct physical loss results in both a covered loss to the dwelling and a loss of land stability, the policy will pay up to $10,000 as an additional amount of insurance for repair costs associated with the land. This includes costs required to replace, rebuild, stabilize, or otherwise restore the land necessary to support the part of the dwelling sustaining the covered loss.
+      
+      This coverage is subject to the condition that the loss must be sudden and accidental, and it does not apply to earth movement unless it results in a loss of land stability as described. The $10,000 limit is an additional amount of insurance beyond the standard coverage limits for the dwelling.
+      
+      **What is NOT covered**
+      
+      Here are the exclusions, limitations, and conditions that apply to fixing the ground under your deck due to storm damage:
+      
+      1. **Soil Conditions**: The policy does not cover losses caused by soil conditions, including corrosive action, chemicals, compounds, elements, suspensions, crystal formations, or gels in the soil. This means if the ground under your deck is damaged due to these soil conditions, it is not covered.
+      
+      2. **Flood and Water Damage**: Losses caused by flood, surface water, waves, tidal water, overflow of any body of water, or spray from any of these, whether or not driven by wind, are not covered. Additionally, water or any other substance that backs up through sewers or drains, overflows from a sump pump, or is on or below the surface of the ground is excluded. This means if storm damage involves flooding or water seepage affecting the ground under your deck, it is not covered.
+      
+      3. **Earth Movement**: Any type of earth movement, including earthquake, landslide, subsidence, mudflow, erosion, or the sinking, rising, shifting, creeping, expanding, bulging, cracking, settling, or contracting of the earth, is excluded. This applies whether or not the earth movement is combined with water. Therefore, if the ground under your deck is affected by such movements, it is not covered.
+      
+      4. **Weather Conditions**: Weather conditions that contribute to a cause of loss excluded under the policy are not covered. This means if the storm damage is exacerbated by weather conditions that are part of an excluded cause, it is not covered.
+      
+      5. **Planning, Construction, or Maintenance**: Losses due to faulty, inadequate, or defective planning, zoning, development, surveying, siting, design, specifications, workmanship, repair, construction, renovation, remodeling, grading, compaction, or maintenance are not covered. If the ground under your deck is damaged due to these factors, it is not covered.
+      
+      These exclusions mean that if the ground under your deck is damaged by storm-related causes that fall into these categories, the policy will not cover the repairs.
+    [PASS] h2-ground-washed-out       ranks: #4
+PASSED
+
+====================== 3 passed, 23 deselected in 18.86s =======================

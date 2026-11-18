@@ -722,8 +722,9 @@ runs. Findings (`baselines/2026-11-17-query-wording.md`, tool `tests/integration
   rewrite now keeps what the user is worried about or asking for. That moved the case 0/8 -> 6/8.
 - Asking the agents for formal wording made it worse (0/6); asking for a "kind of protection, details
   stripped" query fixed two cases and broke two others (6/6 -> 0/6) and was not even followed in
-  those: reverted. With temperature 0 the agents are deterministic per prompt, so a prompt edit
-  flips cases rather than adding noise; judge it on many cases, not on repeats of one.
+  those: reverted. The agents are mostly, NOT fully, deterministic at temperature 0 (two runs of one
+  prompt wrote different queries and the vandalized-car case flipped between full runs), so a
+  prompt edit flips cases AND there is run-to-run noise; judge on many cases, not on repeats of one.
 - Raw rank of the needed passage for everyday-wording queries is 4-16 while `search_policy` returns
   4: retrieval is brittle by construction (huge chunks, lay vs legal words).
 - OPEN: `h2-selling-the-house` is routed `out_of_scope` every time by the classifier (a regression);
@@ -740,6 +741,23 @@ runs. Findings (`baselines/2026-11-17-query-wording.md`, tool `tests/integration
   (refused 8 of 8 times). Unit tests stub the confirmation (`conftest.py`), so they never call it.
 - Evidence: `baselines/2026-11-17-retry-and-confirm.md` (7 targeted cases, ~$0.30). The retry did
   not fire live in that run; it is proven offline only.
+
+### 37. Layout: leave out sections that have nothing to say
+Merged answers used to print "What IS covered" and "What is NOT covered" even when one side was
+empty or repeated the other (credit monitoring: two sections both saying "no"; stolen keys: the
+exclusions section restated the lock grant and its $500 limit).
+- Specialists begin a reply with `NOT_ADDRESSED:` (policy has nothing on it) or, for the Exclusions
+  Agent, `NONE_FOUND:`. `mark_gap` strips the marker (it never reaches the user) and sets
+  `AgentResult.not_addressed`. In a merge: both empty -> one plain statement, no headings; one
+  empty -> the other section plus a one-line note ("No exclusion or limitation was found for
+  this."). A single result is shown as is, minus the marker.
+- Prompt compliance was partial: the Exclusions Agent kept restating coverage instead of
+  `NONE_FOUND`, so `restates_coverage` is a deterministic backstop: in a MERGE only, an exclusions
+  answer whose verbatim quotes all come from chunks outside the exclusions regions is treated as
+  empty. Alone, an Exclusions answer is never dropped.
+- Evidence: `baselines/2026-11-17-layout.md`: 6 + 4 targeted live cases, then ONE full run: 26 of 31
+  pass (5 retrieval misses: icy driveway, burglary, vandalized car, selling the house, code upgrade;
+  the first and last two are flaky run to run, burglary is the known routing case).
 
 ---
 
