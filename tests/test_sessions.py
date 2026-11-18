@@ -114,6 +114,11 @@ def test_clear_only_clears_its_own_kind(db: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_a_new_checkpointer_is_already_set_up(db: str) -> None:
+    """Lazy first-use setup by two threads at once raised 'database is locked' (see create_checkpointer)."""
+    assert create_checkpointer().is_setup is True
+
+
 def test_thread_ids_are_namespaced_by_agent() -> None:
     assert thread_id("coverage", "abc") != thread_id("exclusions", "abc")
     assert thread_id("coverage", "abc").endswith("abc")

@@ -60,8 +60,18 @@ def _connect() -> sqlite3.Connection:
 
 
 def create_checkpointer() -> SqliteSaver:
-    """A SqliteSaver on its own connection to the sessions database."""
-    return SqliteSaver(_connect())
+    """
+    A SqliteSaver on its own connection to the sessions database, already set up.
+
+    SqliteSaver creates its tables and switches the file to WAL mode lazily, on first use.
+    With the coverage fan-out two specialists reach that first use at the same moment, and
+    SQLite answers one of them "database is locked" immediately, WITHOUT waiting for the busy
+    timeout (found by a test that failed about 1 run in 5). Setting up here, at creation,
+    makes it happen serially, before any thread uses the saver.
+    """
+    saver = SqliteSaver(_connect())
+    saver.setup()
+    return saver
 
 
 def thread_id(agent: str, session_id: str) -> str:
